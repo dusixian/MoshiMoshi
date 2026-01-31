@@ -1,3 +1,4 @@
+// Reservation status enum (must match database check constraint)
 export type ReservationStatus = 
   | 'pending'      // Just created, waiting to start call
   | 'calling'      // Call in progress

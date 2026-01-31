@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     // Insert new reservation with 'pending' status
     const { data, error } = await supabase
-      .from('reservations')
+      .from('reservation_dev')
       .insert({
         restaurant_name: body.restaurant_name,
         restaurant_phone: body.restaurant_phone,
@@ -54,28 +54,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // TODO: Here you would trigger the ElevenLabs agent outbound call
-    // For now, we just mock it by updating status to 'calling'
-    console.log(`[Mock] Would initiate call to ${body.restaurant_phone} for reservation ${data.id}`)
-
-    // Update status to 'calling' to simulate call initiation
-    const { error: updateError } = await supabase
-      .from('reservations')
-      .update({ status: 'calling', call_id: `mock_call_${data.id}` })
-      .eq('id', data.id)
-
-    if (updateError) {
-      console.error('Failed to update status:', updateError)
-    }
-
+    // Reservation created with 'pending' status
+    // Next step: Call ElevenLabs API to initiate outbound call
+    // The API will return conversation_id which should be used to update the reservation
+    
     return NextResponse.json({
       success: true,
-      reservation: {
-        ...data,
-        status: 'calling',
-        call_id: `mock_call_${data.id}`
-      },
-      message: 'Reservation created, call initiated'
+      reservation: data,
+      message: 'Reservation created. Ready to initiate call.',
+      next_step: 'Call POST /api/reservations/{id}/start-call with conversation_id to begin the call'
     }, { status: 201 })
 
   } catch (error) {
@@ -93,7 +80,7 @@ export async function GET() {
     const supabase = await createClient()
 
     const { data, error } = await supabase
-      .from('reservations')
+      .from('reservation_dev')
       .select('*')
       .order('created_at', { ascending: false })
 

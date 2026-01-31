@@ -11,7 +11,7 @@ export async function GET(
     const supabase = await createClient()
 
     const { data, error } = await supabase
-      .from('reservations')
+      .from('reservation_dev')
       .select('*')
       .eq('id', id)
       .single()
