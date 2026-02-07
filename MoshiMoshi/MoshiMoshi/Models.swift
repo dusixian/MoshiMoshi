@@ -37,10 +37,32 @@ struct ReservationRequest: Codable {
 }
 
 
-struct BackendResponse: Codable {
-    let success: Bool?
-    let message: String?
-    let error: String?
+struct ReservationData: Codable, Identifiable {
+    let id: String
+    let status: String
+    let bookingConfirmed: Bool?
+    let failureReason: String?
+    
+    struct Details: Codable {
+        let notes: String?
+        let alternative_times: String?
+        let status: String?
+    }
+    let confirmationDetails: Details?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case status
+        case bookingConfirmed = "booking_confirmed"
+        case failureReason = "failure_reason"
+        case confirmationDetails = "confirmation_details"
+    }
+}
+
+
+struct CreateReservationResponse: Codable {
+    let success: Bool
+    let reservation: ReservationData
 }
 
 
@@ -48,13 +70,12 @@ enum ReservationStatus: String, Codable {
     case pending = "Calling..."
     case confirmed = "Confirmed"
     case failed = "Failed"
-    case busy = "Line Busy"
     
     var color: Color {
         switch self {
         case .pending: return .gray
-        case .confirmed: return .sushiWasabi // Green
-        case .failed, .busy: return .sushiTuna   // Red
+        case .confirmed: return .sushiWasabi
+        case .failed: return .sushiTuna
         }
     }
     
@@ -63,13 +84,14 @@ enum ReservationStatus: String, Codable {
         case .pending: return "phone.connection"
         case .confirmed: return "checkmark.circle.fill"
         case .failed: return "xmark.circle.fill"
-        case .busy: return "phone.down.circle.fill"
         }
     }
 }
 
+
 struct ReservationItem: Identifiable {
-    let id = UUID()
+    let id: UUID = UUID()
+    var backendId: String?
     let request: ReservationRequest
     var status: ReservationStatus
     var resultMessage: String?

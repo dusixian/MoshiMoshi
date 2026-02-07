@@ -42,49 +42,90 @@ class ReservationViewModel: ObservableObject {
         self.request.reservationTime = timeFormatter.string(from: request.dateTime)
         
         // 2. Create a "Pending" ticket immediately for UX
-        let newReservation = ReservationItem(
+        var newUIItem = ReservationItem(
+            backendId: nil,
             request: self.request,
             status: .pending,
-            resultMessage: "Connecting to AI Agent..."
+            resultMessage: "Initiating call..."
         )
         
         // Insert to top of the list
         withAnimation {
-            self.reservations.insert(newReservation, at: 0)
+            self.reservations.insert(newUIItem, at: 0)
         }
         
         // 3. Initiate the Network Call asynchronously
         Task {
             do {
-                // Call the API Service
+                // Call Backend to Create
                 let response = try await APIService.shared.sendReservation(request: self.request)
-                
-                // 4. Handle Success
+                        
                 await MainActor.run {
-                    self.updateTicket(
-                        id: newReservation.id,
-                        status: .confirmed,
-                        message: response.message ?? "Call initiated successfully."
-                    )
+                    // Update UI item
+                    if let index = self.reservations.firstIndex(where: { $0.id == newUIItem.id }) {
+                        self.reservations[index].backendId = response.reservation.id
+                        self.reservations[index].resultMessage = "AI is calling the restaurant..."
+                    }
                     self.isSubmitting = false
-                    print("✅ Success: \(response)")
                 }
-                
+                        
+                // Start Polling
+                await startPolling(backendId: response.reservation.id, uiItemId: newUIItem.id)
+                        
             } catch {
-                // 5. Handle Failure
-                print("❌ Network Error: \(error.localizedDescription)")
-                
                 await MainActor.run {
-                    self.updateTicket(
-                        id: newReservation.id,
-                        status: .failed,
-                        message: "Connection failed: \(error.localizedDescription)"
-                    )
+                    self.updateTicket(id: newUIItem.id, status: .failed, message: "Network Error: \(error.localizedDescription)")
                     self.isSubmitting = false
                 }
             }
         }
     }
+    
+    
+    // MARK: - Polling Logic
+        func startPolling(backendId: String, uiItemId: UUID) async {
+            var attempts = 0
+            let maxAttempts = 30 // 最多查 30 次 (60秒)
+            
+            while attempts < maxAttempts {
+                try? await Task.sleep(nanoseconds: 2 * 1_000_000_000)
+                
+                do {
+                    // Check status
+                    if let data = try await APIService.shared.fetchReservation(id: backendId) {
+                        
+                        print("🔍 Polling: Status is \(data.status)")
+                        
+                        // If completed
+                        if data.status == "completed" || data.status == "failed" {
+                            
+                            await MainActor.run {
+                                if data.bookingConfirmed == true {
+                                    // Success
+                                    let notes = data.confirmationDetails?.notes
+                                    let displayMsg = (notes != nil && !notes!.isEmpty) ? notes! : "Reservation Confirmed!"
+                                    self.updateTicket(id: uiItemId, status: .confirmed, message: displayMsg)
+                                } else {
+                                    // Fail
+                                    let altTime = data.confirmationDetails?.alternative_times
+                                    let reason = data.failureReason ?? "Reservation rejected"
+                                    var displayMsg = reason
+                                    if let alt = altTime, !alt.isEmpty {
+                                        displayMsg = "\(reason)\nAlternative Time: \(alt)"
+                                    }
+                                    self.updateTicket(id: uiItemId, status: .failed, message: displayMsg)
+                                }
+                            }
+                            break
+                        }
+                    }
+                } catch {
+                    print("Polling error: \(error)")
+                }
+                
+                attempts += 1
+            }
+        }
     
     // Helper function to update a specific ticket in the list
     func updateTicket(id: UUID, status: ReservationStatus, message: String) {
