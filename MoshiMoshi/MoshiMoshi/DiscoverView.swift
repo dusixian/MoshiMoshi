@@ -10,7 +10,6 @@ import SwiftUI
 struct DiscoverView: View {
     @ObservedObject var viewModel: ReservationViewModel
     @State private var searchText = ""
-    @State private var isPresentingManualReservation = false
 
     var body: some View {
         NavigationView {
@@ -45,9 +44,7 @@ struct DiscoverView: View {
                                 .foregroundColor(.gray.opacity(0.8))
                                 .lineSpacing(2)
 
-                            Button(action: {
-                                isPresentingManualReservation = true
-                            }) {
+                            NavigationLink(destination: ReservationFormView(viewModel: viewModel)) {
                                 HStack(spacing: 6) {
                                     Image(systemName: "phone.fill")
                                         .font(.system(size: 14))
@@ -165,12 +162,8 @@ struct DiscoverView: View {
                     }
                 }
             }
-            .navigationBarHidden(true)
-        }
-        .fullScreenCover(isPresented: $isPresentingManualReservation) {
-            NavigationView {
-                ReservationFormView(viewModel: viewModel)
-            }
+            .navigationTitle("Discover")
+            .navigationBarTitleDisplayMode(.large)
         }
     }
 }

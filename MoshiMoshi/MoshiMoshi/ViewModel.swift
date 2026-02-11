@@ -59,18 +59,23 @@ class ReservationViewModel: ObservableObject {
             do {
                 // Call Backend to Create
                 let response = try await APIService.shared.sendReservation(request: self.request)
-                        
+
+                // for webhook testing
+                let presentationTestID = "0a43df25-e617-4ff8-9c16-2243337df28b"
+
                 await MainActor.run {
                     // Update UI item
                     if let index = self.reservations.firstIndex(where: { $0.id == newUIItem.id }) {
-                        self.reservations[index].backendId = response.reservation.id
+                        self.reservations[index].backendId = presentationTestID
+                        // self.reservations[index].backendId = response.reservation.id
                         self.reservations[index].resultMessage = "AI is calling the restaurant..."
                     }
                     self.isSubmitting = false
                 }
                         
                 // Start Polling
-                await startPolling(backendId: response.reservation.id, uiItemId: newUIItem.id)
+                await startPolling(backendId: presentationTestID, uiItemId: newUIItem.id)
+                // await startPolling(backendId: response.reservation.id, uiItemId: newUIItem.id)
                         
             } catch {
                 await MainActor.run {

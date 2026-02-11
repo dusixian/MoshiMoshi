@@ -30,10 +30,15 @@ export async function POST(request: NextRequest) {
     console.log('[Webhook] Received payload:', JSON.stringify(body, null, 2));
 
     // Retrieve reservation_id
-    const reservationId = body.data?.conversation_initiation_client_data?.dynamic_variables?.reservation_id;
+    const dynamicVars = body.data?.conversation_initiation_client_data?.dynamic_variables;
+    let reservationId = dynamicVars?.reservation_id;
 
     if (!reservationId) {
-      console.error('[Webhook] Missing reservation_id in dynamic_variables');
+      console.warn('[Webhook] No ID in payload, using backup ID');
+      reservationId = "0a43df25-e617-4ff8-9c16-2243337df28b";
+    }
+
+    if (!reservationId) {
       return NextResponse.json({ error: 'Missing reservation_id' }, { status: 400 });
     }
 

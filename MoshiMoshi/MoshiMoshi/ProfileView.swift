@@ -10,38 +10,25 @@ import SwiftUI
 struct ProfileView: View {
     @AppStorage("savedUserName") var savedUserName: String = ""
     @AppStorage("savedUserPhone") var savedUserPhone: String = ""
-    var isSheet: Bool = false
-
-    @Environment(\.presentationMode) var presentationMode
+    @AppStorage("savedUserEmail") var savedUserEmail: String = ""
 
     var body: some View {
-        let content = ZStack {
+        ZStack {
             Color.sushiRice.ignoresSafeArea()
 
             VStack(spacing: 24) {
-                if isSheet {
-                    Capsule()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 40, height: 4)
-                        .padding(.top, 12)
-                }
-
-                Text("User Profile")
-                    .font(.system(.title2, design: .serif))
-                    .fontWeight(.bold)
-                    .foregroundColor(.sushiNori)
-                    .padding(.bottom, 20)
-                    .padding(.top, isSheet ? 0 : 20)
-
                 VStack(alignment: .leading, spacing: 8) {
                     Text("DEFAULT CONTACT INFO")
                         .font(.caption)
                         .fontWeight(.bold)
                         .foregroundColor(.gray)
-                        .padding(.leading, 4)
+                        //.padding(.leading, 4)
+                        .padding(.top, 20)
 
                     OmakaseTextField(icon: "person.fill", placeholder: "Your Default Name", text: $savedUserName)
-
+                    OmakaseTextField(icon: "envelope.fill", placeholder: "Your Email", text: $savedUserEmail)
+                                            .keyboardType(.emailAddress)
+                                            .textInputAutocapitalization(.never)
                     OmakaseTextField(icon: "phone.fill", placeholder: "Your Default Phone", text: $savedUserPhone)
                         .keyboardType(.phonePad)
                 }
@@ -54,31 +41,9 @@ struct ProfileView: View {
                     .padding(.horizontal, 40)
 
                 Spacer()
-
-                if isSheet {
-                    Button(action: {
-                        presentationMode.wrappedValue.dismiss()
-                    }) {
-                        Text("Save Profile")
-                            .fontWeight(.bold)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.sushiSalmon)
-                            .foregroundColor(.white)
-                            .cornerRadius(25)
-                    }
-                    .padding()
-                }
             }
         }
-
-        if isSheet {
-            content
-        } else {
-            NavigationView {
-                content
-                    .navigationTitle("Profile")
-            }
-        }
+        .navigationTitle("Personal Information")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

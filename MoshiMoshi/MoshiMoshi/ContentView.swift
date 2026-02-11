@@ -74,7 +74,7 @@ struct ContentView: View {
                 }
                 .tag(2)
 
-            ProfileView(isSheet: false)
+            ProfileMenuView()
                 .tabItem {
                     Image(systemName: "person.fill")
                     Text("Profile")

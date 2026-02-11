@@ -99,14 +99,6 @@ struct ReservationFormView: View {
         }
         .navigationTitle("New Reservation")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Cancel") {
-                    dismiss()
-                }
-                .foregroundColor(.sushiSalmon)
-            }
-        }
     }
 }
 

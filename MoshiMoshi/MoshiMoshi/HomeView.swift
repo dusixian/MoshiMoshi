@@ -21,16 +21,11 @@ struct HomeView: View {
 
                         // --- Welcome Section ---
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("MoshiMoshi")
-                                .font(.system(size: 48, weight: .bold, design: .serif))
-                                .foregroundColor(.sushiNori)
-
                             Text("Ready for your next reservation?")
                                 .font(.system(size: 18))
                                 .foregroundColor(.gray)
                         }
                         .padding(.horizontal)
-                        .padding(.top, 20)
 
                         // --- Start New Reservation Card ---
                         Button(action: {
@@ -75,6 +70,7 @@ struct HomeView: View {
                             .shadow(color: Color.sushiSalmon.opacity(0.3), radius: 10, x: 0, y: 5)
                         }
                         .padding(.horizontal)
+                        .padding(.top, -10)
 
                         // --- Upcoming Events Section ---
                         VStack(alignment: .leading, spacing: 16) {
@@ -144,7 +140,8 @@ struct HomeView: View {
                     }
                 }
             }
-            .navigationBarHidden(true)
+            .navigationTitle("MoshiMoshi")
+            .navigationBarTitleDisplayMode(.large)
         }
     }
 }
