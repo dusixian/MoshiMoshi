@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ProfileView: View {
+    var onSave: (() -> Void)?
+
     @StateObject private var profileService = ProfileService()
 
     @State private var fullName: String = ""
@@ -15,9 +17,19 @@ struct ProfileView: View {
     @State private var phoneCountryCode: String = "+1"
     @State private var phoneNational: String = ""
 
+    @State private var lastSavedName: String = ""
+    @State private var lastSavedEmail: String = ""
+    @State private var lastSavedPhoneCode: String = "+1"
+    @State private var lastSavedPhoneNational: String = ""
+
     @State private var isLoading = false
     @State private var isSaving = false
     @State private var saveError: String?
+
+    private var hasUnsavedChanges: Bool {
+        fullName != lastSavedName || email != lastSavedEmail
+            || phoneCountryCode != lastSavedPhoneCode || phoneNational != lastSavedPhoneNational
+    }
 
     var body: some View {
         ZStack {
@@ -72,13 +84,13 @@ struct ProfileView: View {
                         }
                     }
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundColor(hasUnsavedChanges ? .white : .gray)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.sushiSalmon)
+                    .background(hasUnsavedChanges ? Color.sushiSalmon : Color.gray.opacity(0.4))
                     .cornerRadius(12)
                 }
-                .disabled(isSaving)
+                .disabled(isSaving || !hasUnsavedChanges)
                 .padding(.horizontal)
 
                 Text("This information will be automatically filled in when you make a new reservation request.")
@@ -122,6 +134,12 @@ struct ProfileView: View {
             phoneCountryCode = parsed.code
             phoneNational = parsed.national
         }
+        await MainActor.run {
+            lastSavedName = fullName
+            lastSavedEmail = email
+            lastSavedPhoneCode = phoneCountryCode
+            lastSavedPhoneNational = phoneNational
+        }
     }
 
     private func saveProfile() {
@@ -136,7 +154,14 @@ struct ProfileView: View {
                     phone: fullPhone.isEmpty ? nil : fullPhone
                 )
                 syncToUserDefaults()
-                await MainActor.run { isSaving = false }
+                await MainActor.run {
+                    isSaving = false
+                    lastSavedName = fullName
+                    lastSavedEmail = email
+                    lastSavedPhoneCode = phoneCountryCode
+                    lastSavedPhoneNational = phoneNational
+                    onSave?()
+                }
             } catch {
                 await MainActor.run {
                     isSaving = false

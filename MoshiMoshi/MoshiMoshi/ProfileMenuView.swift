@@ -69,7 +69,7 @@ struct ProfileMenuView: View {
                                 .padding(.bottom, 8)
 
                             VStack(spacing: 0) {
-                                NavigationLink(destination: ProfileView()) {
+                                NavigationLink(destination: ProfileView(onSave: { Task { await loadProfileFromDB() } })) {
                                     MenuRowContent(icon: "person.circle", title: "Personal Information")
                                 }
 
