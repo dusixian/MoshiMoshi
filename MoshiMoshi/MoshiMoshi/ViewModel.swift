@@ -14,18 +14,27 @@ class ReservationViewModel: ObservableObject {
     @Published var isSubmitting = false
     @Published var showProfileSheet = false
     
-    // Persist user contact info
+    // Fallback from UserDefaults when DB has no profile
     @AppStorage("savedUserName") var savedUserName: String = ""
     @AppStorage("savedUserPhone") var savedUserPhone: String = ""
-    
+    @AppStorage("savedUserEmail") var savedUserEmail: String = ""
+
     init() {
         refreshUserData()
     }
-    
-    // Load default data from AppStorage
+
+    /// Fill contact from DB profile (call when opening reservation form). Falls back to UserDefaults if no profile.
+    func fillContactFromProfile(name: String?, email: String?, phone: String?) {
+        if let n = name, !n.isEmpty { request.customerName = n }
+        if let e = email, !e.isEmpty { request.customerEmail = e }
+        if let p = phone, !p.isEmpty { request.customerPhone = p }
+    }
+
+    // Load default data from AppStorage (fallback)
     func refreshUserData() {
         if !savedUserName.isEmpty { request.customerName = savedUserName }
         if !savedUserPhone.isEmpty { request.customerPhone = savedUserPhone }
+        if !savedUserEmail.isEmpty { request.customerEmail = savedUserEmail }
     }
     
     // MARK: - Main Logic

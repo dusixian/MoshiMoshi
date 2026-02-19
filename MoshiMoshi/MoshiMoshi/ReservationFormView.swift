@@ -10,7 +10,11 @@ import SwiftUI
 
 struct ReservationFormView: View {
     @ObservedObject var viewModel: ReservationViewModel
+    @StateObject private var profileService = ProfileService()
     @Environment(\.dismiss) var dismiss
+
+    @State private var phoneCountryCode: String = "+1"
+    @State private var phoneNational: String = ""
 
     var body: some View {
         ZStack {
@@ -48,12 +52,29 @@ struct ReservationFormView: View {
                             .padding().background(Color.white).cornerRadius(12)
                         }
 
-                        // Section 3: User Info
+                        // Section 3: User Info (auto-filled from profile DB)
                         VStack(alignment: .leading) {
                             Text("YOUR CONTACT").modifier(OmakaseHeader())
                             OmakaseTextField(icon: "person", placeholder: "Your Name", text: $viewModel.request.customerName)
-                            OmakaseTextField(icon: "iphone", placeholder: "Your Phone", text: $viewModel.request.customerPhone)
-                                .keyboardType(.phonePad)
+                            OmakaseTextField(icon: "envelope.fill", placeholder: "Your Email", text: $viewModel.request.customerEmail)
+                                .keyboardType(.emailAddress)
+                                .textInputAutocapitalization(.never)
+                            // Phone: country code + number (same as Profile)
+                            HStack(spacing: 12) {
+                                Image(systemName: "phone.fill")
+                                    .foregroundColor(.sushiNori.opacity(0.6))
+                                    .frame(width: 24)
+                                TextField("+1", text: $phoneCountryCode)
+                                    .keyboardType(.phonePad)
+                                    .foregroundColor(.sushiNori)
+                                    .frame(width: 56)
+                                TextField("Phone number", text: $phoneNational)
+                                    .keyboardType(.phonePad)
+                                    .foregroundColor(.sushiNori)
+                            }
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(12)
                         }
 
                         // Section 4: Notes
@@ -72,6 +93,7 @@ struct ReservationFormView: View {
 
                     // --- START CALL BUTTON ---
                     Button(action: {
+                        viewModel.request.customerPhone = PhoneCountryCode.fullPhone(countryCode: phoneCountryCode, national: phoneNational)
                         viewModel.startAICall()
                         dismiss()
                     }) {
@@ -99,6 +121,45 @@ struct ReservationFormView: View {
         }
         .navigationTitle("New Reservation")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await loadContactFromDB() }
+        .onChange(of: phoneCountryCode) { _ in syncPhoneToRequest() }
+        .onChange(of: phoneNational) { _ in syncPhoneToRequest() }
+    }
+
+    private func syncPhoneToRequest() {
+        viewModel.request.customerPhone = PhoneCountryCode.fullPhone(countryCode: phoneCountryCode, national: phoneNational)
+    }
+
+    private func loadContactFromDB() async {
+        do {
+            if let profile = try await profileService.fetchProfile() {
+                await MainActor.run {
+                    viewModel.fillContactFromProfile(
+                        name: profile.fullName,
+                        email: profile.email,
+                        phone: profile.phone
+                    )
+                    let parsed = PhoneCountryCode.parse(full: profile.phone ?? "")
+                    phoneCountryCode = parsed.code
+                    phoneNational = parsed.national
+                    viewModel.request.customerPhone = profile.phone ?? ""
+                }
+            } else {
+                await MainActor.run {
+                    viewModel.refreshUserData()
+                    let parsed = PhoneCountryCode.parse(full: viewModel.request.customerPhone)
+                    phoneCountryCode = parsed.code
+                    phoneNational = parsed.national
+                }
+            }
+        } catch {
+            await MainActor.run {
+                viewModel.refreshUserData()
+                let parsed = PhoneCountryCode.parse(full: viewModel.request.customerPhone)
+                phoneCountryCode = parsed.code
+                phoneNational = parsed.national
+            }
+        }
     }
 }
 
