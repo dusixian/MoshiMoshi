@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ProfileMenuView: View {
+    @EnvironmentObject var auth: AuthManager
     @AppStorage("savedUserName") var savedUserName: String = ""
     @AppStorage("savedUserPhone") var savedUserPhone: String = ""
     @AppStorage("savedUserEmail") var savedUserEmail: String = ""
@@ -130,7 +131,7 @@ struct ProfileMenuView: View {
 
                         // --- Sign Out Button ---
                         Button(action: {
-                            // Sign out logic
+                            auth.signOut()
                         }) {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.right.square")
