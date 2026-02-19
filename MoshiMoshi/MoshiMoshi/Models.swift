@@ -97,3 +97,20 @@ struct ReservationItem: Identifiable {
     var resultMessage: String?
     let timestamp = Date()
 }
+
+// MARK: - User profile (Supabase profiles table)
+struct UserProfile: Codable, Equatable {
+    var id: UUID?
+    var fullName: String?
+    var email: String?
+    var phone: String?
+    var updatedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case fullName = "full_name"
+        case email = "email"
+        case phone = "phone"
+        case updatedAt = "updated_at"
+    }
+}

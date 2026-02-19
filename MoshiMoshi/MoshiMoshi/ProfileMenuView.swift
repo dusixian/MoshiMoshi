@@ -9,9 +9,10 @@ import SwiftUI
 
 struct ProfileMenuView: View {
     @EnvironmentObject var auth: AuthManager
-    @AppStorage("savedUserName") var savedUserName: String = ""
-    @AppStorage("savedUserPhone") var savedUserPhone: String = ""
-    @AppStorage("savedUserEmail") var savedUserEmail: String = ""
+    @StateObject private var profileService = ProfileService()
+    @State private var displayName: String = ""
+    @State private var displayEmail: String = ""
+    @State private var displayPhone: String = ""
 
     var body: some View {
         NavigationView {
@@ -33,21 +34,21 @@ struct ProfileMenuView: View {
                                     .foregroundColor(.sushiSalmon)
                             }
 
-                            // User Info
+                            // User Info (from DB)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(savedUserName.isEmpty ? "User Name" : savedUserName)
+                                Text(displayName.isEmpty ? "User Name" : displayName)
                                     .font(.system(size: 24, weight: .bold))
                                     .foregroundColor(.sushiNori)
                                 
-                                if !savedUserEmail.isEmpty {
-                                    Text(savedUserEmail)
+                                if !displayEmail.isEmpty {
+                                    Text(displayEmail)
                                     .font(.system(size: 14))
                                     .foregroundColor(.gray)
                                     .underline()
                                 }
 
-                                if !savedUserPhone.isEmpty {
-                                    Text(savedUserPhone)
+                                if !displayPhone.isEmpty {
+                                    Text(displayPhone)
                                         .font(.system(size: 14))
                                         .foregroundColor(.gray)
                                 }
@@ -153,19 +154,44 @@ struct ProfileMenuView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(.sushiSalmon)
+        .onAppear { Task { await loadProfileFromDB() } }
+    }
+
+    private func loadProfileFromDB() async {
+        do {
+            if let profile = try await profileService.fetchProfile() {
+                await MainActor.run {
+                    displayName = profile.fullName ?? ""
+                    displayEmail = profile.email ?? ""
+                    displayPhone = profile.phone ?? ""
+                }
+            } else {
+                await MainActor.run {
+                    displayName = UserDefaults.standard.string(forKey: "savedUserName") ?? ""
+                    displayEmail = UserDefaults.standard.string(forKey: "savedUserEmail") ?? ""
+                    displayPhone = UserDefaults.standard.string(forKey: "savedUserPhone") ?? ""
+                }
+            }
+        } catch {
+            await MainActor.run {
+                displayName = UserDefaults.standard.string(forKey: "savedUserName") ?? ""
+                displayEmail = UserDefaults.standard.string(forKey: "savedUserEmail") ?? ""
+                displayPhone = UserDefaults.standard.string(forKey: "savedUserPhone") ?? ""
+            }
+        }
     }
 
     func getInitials() -> String {
-        if savedUserName.isEmpty {
+        if displayName.isEmpty {
             return "U"
         }
-        let names = savedUserName.split(separator: " ")
+        let names = displayName.split(separator: " ")
         if names.count >= 2 {
             let first = String(names[0].prefix(1))
             let last = String(names[1].prefix(1))
             return (first + last).uppercased()
         } else {
-            return String(savedUserName.prefix(2)).uppercased()
+            return String(displayName.prefix(2)).uppercased()
         }
     }
 }
@@ -229,4 +255,5 @@ struct MenuRow: View {
 
 #Preview {
     ProfileMenuView()
+        .environmentObject(AuthManager())
 }
