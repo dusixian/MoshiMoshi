@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C4D24D1E2F4775D70059092C /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 450D38842F232FBC000ABDEB /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		450D38672F232FA9000ABDEB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C4D24D1E2F4775D70059092C /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = MoshiMoshi;
 			packageProductDependencies = (
+				450D38842F232FBC000ABDEB /* Supabase */,
 			);
 			productName = MoshiMoshi;
 			productReference = 450D38592F232FA8000ABDEB /* MoshiMoshi.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = 450D38502F232FA8000ABDEB;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				450D38832F232FBB000ABDEB /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 450D385A2F232FA8000ABDEB /* Products */;
 			projectDirPath = "";
@@ -562,6 +571,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		450D38832F232FBB000ABDEB /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		450D38842F232FBC000ABDEB /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 450D38832F232FBB000ABDEB /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 450D38512F232FA8000ABDEB /* Project object */;
 }

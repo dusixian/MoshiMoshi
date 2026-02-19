@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AuthenticationServices
+import CryptoKit
 
 struct LoginView: View {
     @EnvironmentObject var auth: AuthManager
@@ -36,6 +37,9 @@ struct LoginView: View {
                 VStack(spacing: 16) {
                     SignInWithAppleButton(.signIn) { request in
                         request.requestedScopes = [.fullName, .email]
+                        let rawNonce = UUID().uuidString
+                        request.nonce = sha256Hex(rawNonce)
+                        auth.setNonceForAppleSignIn(rawNonce)
                         auth.setLoading(true)
                     } onCompletion: { result in
                         auth.handleAppleSignInResult(result)
@@ -65,6 +69,12 @@ struct LoginView: View {
             }
         }
     }
+}
+
+private func sha256Hex(_ string: String) -> String {
+    let data = Data(string.utf8)
+    let hash = SHA256.hash(data: data)
+    return hash.map { String(format: "%02x", $0) }.joined()
 }
 
 #Preview {
