@@ -142,40 +142,45 @@ class ReservationViewModel: ObservableObject {
         }
     
     // MARK: - Helpers
-    private func handleStatusUpdate(record: ReservationData, uiItemId: UUID) {
-        let failureReason = record.failureReason ?? ""
-        let summary = record.confirmationDetails?.analysis?.transcriptSummary ?? ""
+        private func handleStatusUpdate(record: ReservationData, uiItemId: UUID) {
+            let failureReason = record.failureReason ?? ""
             
-        switch record.status {
-        case "completed", "confirmed":
-            let msg = summary.isEmpty ? "Reservation Confirmed!" : "Confirmed: \(summary)"
-            updateTicket(id: uiItemId, status: .confirmed, message: msg)
+            let summary = record.confirmationDetails?.summary ?? ""
                 
-        case "action_required":
-            let msg = failureReason.isEmpty ? "Action needed." : failureReason
-            updateTicket(id: uiItemId, status: .actionRequired, message: "⚠️ Action Required:\n\(msg)")
-                
-        case "failed":
-            let msg = failureReason.isEmpty ? "Rejected by restaurant." : failureReason
-            updateTicket(id: uiItemId, status: .failed, message: "❌ Failed: \(msg)")
-                
-        case "incomplete":
-            updateTicket(id: uiItemId, status: .incomplete, message: "⚠️ Call disconnected. Please try again.")
-                
-        default:
-            print("Received unknown status update: \(record.status)")
-        }
-    }
-    
-    // Helper function to update a specific ticket in the list
-    func updateTicket(id: UUID, status: ReservationStatus, message: String) {
-        if let index = reservations.firstIndex(where: { $0.id == id }) {
-            withAnimation {
-                reservations[index].status = status
-                reservations[index].resultMessage = message
+            switch record.status {
+            case "completed", "confirmed":
+                let msg = summary.isEmpty ? "Reservation Confirmed!" : "Confirmed: \(summary)"
+                updateTicket(id: uiItemId, status: .confirmed, message: msg, fullRecord: record)
+                    
+            case "action_required":
+                let msg = failureReason.isEmpty ? "Action needed." : failureReason
+                updateTicket(id: uiItemId, status: .actionRequired, message: "⚠️ Action Required:\n\(msg)", fullRecord: record)
+                    
+            case "failed":
+                let msg = failureReason.isEmpty ? "Rejected by restaurant." : failureReason
+                updateTicket(id: uiItemId, status: .failed, message: "❌ Failed: \(msg)", fullRecord: record)
+                    
+            case "incomplete":
+                updateTicket(id: uiItemId, status: .incomplete, message: "⚠️ Call disconnected.", fullRecord: record)
+                    
+            default:
+                print("Received unknown status update: \(record.status)")
             }
         }
-    }
+        
+        func updateTicket(id: UUID, status: ReservationStatus, message: String, fullRecord: ReservationData? = nil) {
+            if let index = reservations.firstIndex(where: { $0.id == id }) {
+                DispatchQueue.main.async {
+                    withAnimation {
+                        self.reservations[index].status = status
+                        self.reservations[index].resultMessage = message
+                        if let record = fullRecord {
+                            self.reservations[index].fullData = record
+                        }
+                    }
+                }
+            }
+        }
     
     // Form Validation
     var isValid: Bool {

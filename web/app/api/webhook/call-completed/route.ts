@@ -6,16 +6,30 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('[Webhook] Received payload at:', new Date().toISOString());
 
-    const results = body.data?.analysis?.data_collection_results || {};
+
+    const rawData = body.data || {};
+    const analysis = rawData.analysis || {};
+    const dataResults = analysis.data_collection_results || {};
+    const metadata = rawData.metadata || {};
+
+    const cleanedDetails = {
+      summary: analysis.transcript_summary || "",
+      results: dataResults,
+      transcript: rawData.transcript || [],
+      call_stats: {
+        duration: metadata.call_duration_secs || 0,
+        cost: metadata.cost || 0
+      }
+    };
 
     // "Confirmed", "Action Required", "Failed", "Incomplete"
-    const rawStatus = String(results.reservation_status?.value || results.reservation_status || "incomplete").toLowerCase();
+    const rawStatus = String(dataResults.reservation_status?.value || dataResults.reservation_status || "incomplete").toLowerCase();
     
     // database - failure_reason
-    const requiredAction = results.required_action?.value || null;
-    const rejectionReason = results.rejection_reason?.value || null;
+    const requiredAction = dataResults.required_action?.value || null;
+    const rejectionReason = dataResults.rejection_reason?.value || null;
 
-  // database - status
+    // database - status
     let dbStatus = 'completed'; 
     let isConfirmed = false;
     let finalFailureReason = null;
@@ -66,7 +80,7 @@ export async function POST(request: NextRequest) {
         status: dbStatus,
         booking_confirmed: isConfirmed,
         failure_reason: finalFailureReason,
-        confirmation_details: body.data, 
+        confirmation_details: cleanedDetails, 
         
         updated_at: new Date().toISOString()
       })

@@ -8,7 +8,6 @@
 import Foundation
 import SwiftUI
 
-
 struct ReservationRequest: Codable {
     var restaurantName: String = ""
     var restaurantPhone: String = ""
@@ -24,7 +23,6 @@ struct ReservationRequest: Codable {
     var partySize: Int = 2
     var specialRequests: String = ""
 
-    // Mapping keys to match Python/Next.js snake_case
     enum CodingKeys: String, CodingKey {
         case restaurantName = "restaurant_name"
         case restaurantPhone = "restaurant_phone"
@@ -38,27 +36,19 @@ struct ReservationRequest: Codable {
     }
 }
 
-
 struct ReservationData: Codable, Identifiable {
     let id: String
     let status: String
     let bookingConfirmed: Bool?
     let failureReason: String?
-    
+
     struct Details: Codable {
-        let analysis: Analysis?
-            
-        struct Analysis: Codable {
-            let transcriptSummary: String?
-            let dataCollectionResults: DataCollectionResults?
-                
-            enum CodingKeys: String, CodingKey {
-                case transcriptSummary = "transcript_summary"
-                case dataCollectionResults = "data_collection_results"
-            }
-        }
-            
-        struct DataCollectionResults: Codable {
+        let summary: String?
+        let results: DataResults?
+        let transcript: [ChatMessage]?
+        let callStats: CallStats?
+        
+        struct DataResults: Codable {
             let reservationStatus: ValueWrapper?
             let requiredAction: ValueWrapper?
             let rejectionReason: ValueWrapper?
@@ -71,9 +61,32 @@ struct ReservationData: Codable, Identifiable {
                 case restaurantNotes = "restaurant_notes"
             }
         }
-            
+        
         struct ValueWrapper: Codable {
             let value: String?
+        }
+        
+        struct ChatMessage: Codable, Identifiable {
+            let id = UUID()
+            let role: String
+            let message: String
+            
+            enum CodingKeys: String, CodingKey {
+                case role
+                case message
+            }
+        }
+        
+        struct CallStats: Codable {
+            let duration: Double
+            let cost: Double
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case summary
+            case results
+            case transcript
+            case callStats = "call_stats"
         }
     }
     
@@ -88,12 +101,10 @@ struct ReservationData: Codable, Identifiable {
     }
 }
 
-
 struct CreateReservationResponse: Codable {
     let success: Bool
     let reservation: ReservationData
 }
-
 
 enum ReservationStatus: String, Codable {
     case pending = "Calling..."
@@ -123,13 +134,13 @@ enum ReservationStatus: String, Codable {
     }
 }
 
-
 struct ReservationItem: Identifiable {
     let id: UUID = UUID()
     var backendId: String?
     let request: ReservationRequest
     var status: ReservationStatus
     var resultMessage: String?
+    var fullData: ReservationData?
     let timestamp = Date()
 }
 
