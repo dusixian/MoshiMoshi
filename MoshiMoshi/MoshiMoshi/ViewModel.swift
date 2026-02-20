@@ -15,6 +15,7 @@ class ReservationViewModel: ObservableObject {
     @Published var reservations: [ReservationItem] = [] // List of history
     @Published var isSubmitting = false
     @Published var showProfileSheet = false
+    @Published var hasLoadedHistory = false
     
     // Fallback from UserDefaults when DB has no profile
     @AppStorage("savedUserName") var savedUserName: String = ""
@@ -68,6 +69,10 @@ class ReservationViewModel: ObservableObject {
         // 3. Initiate the Network Call asynchronously
         Task {
             do {
+                // Get user id
+                let session = try await APIService.shared.supabase.auth.session
+                self.request.userId = session.user.id.uuidString
+                
                 // Call Backend to Create
                 let response = try await APIService.shared.sendReservation(request: self.request)
 
@@ -94,6 +99,109 @@ class ReservationViewModel: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Fetch History from Database
+        func fetchUserHistory() {
+            guard !hasLoadedHistory else { return }
+            
+            Task {
+                do {
+                    // 1. Get the current authenticated user's session
+                    let session = try await APIService.shared.supabase.auth.session
+                    let currentUserId = session.user.id
+                    
+                    // 2. Fetch all reservation rows for this user, ordered by creation date (newest first)
+                    let rows: [ReservationDBRow] = try await APIService.shared.supabase
+                        .from("reservations")
+                        .select()
+                        .eq("user_id", value: currentUserId)
+                        .order("created_at", ascending: false)
+                        .execute()
+                        .value
+                    
+                    // 3. Convert DB rows to UI-friendly ReservationItems
+                    var loadedItems: [ReservationItem] = []
+                    
+                    for row in rows {
+                        // Reconstruct the request data
+                        var req = ReservationRequest()
+                        req.restaurantName = row.restaurantName
+                        req.restaurantPhone = row.restaurantPhone ?? ""
+                        req.customerName = row.customerName ?? ""
+                        req.customerPhone = row.customerPhone ?? ""
+                        req.customerEmail = row.customerEmail ?? ""
+                        req.partySize = row.partySize ?? 2
+                        req.specialRequests = row.specialRequests ?? ""
+                        
+                        // Reconstruct DateTime object for the UI cards
+                        let dateFormatter = DateFormatter()
+                        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                        if let dateStr = row.reservationDate, let timeStr = row.reservationTime {
+                            if let parsedDate = dateFormatter.date(from: "\(dateStr) \(timeStr)") {
+                                req.dateTime = parsedDate
+                            }
+                        }
+                        
+                        // Map the raw database status to our UI enum
+                        let rawStatus = row.status.lowercased()
+                        var uiStatus: ReservationStatus = .pending
+                        
+                        if rawStatus == "completed" || rawStatus == "confirmed" {
+                            uiStatus = .confirmed
+                        } else if rawStatus == "action_required" {
+                            uiStatus = .actionRequired
+                        } else if rawStatus == "failed" {
+                            uiStatus = .failed
+                        } else if rawStatus == "incomplete" {
+                            uiStatus = .incomplete
+                        }
+                        
+                        // Reconstruct the full data object for the details sheet
+                        let fullData = ReservationData(
+                            id: row.id,
+                            status: row.status,
+                            bookingConfirmed: nil,
+                            failureReason: row.failureReason,
+                            confirmationDetails: row.confirmationDetails
+                        )
+                        
+                        // Determine the display message for the card
+                        let summary = row.confirmationDetails?.summary ?? ""
+                        let failureMsg = row.failureReason ?? ""
+                        var displayMsg = ""
+                        
+                        switch uiStatus {
+                        case .confirmed: displayMsg = summary.isEmpty ? "Reservation Confirmed!" : "Confirmed: \(summary)"
+                        case .actionRequired: displayMsg = failureMsg.isEmpty ? "Action needed." : "⚠️ Action Required:\n\(failureMsg)"
+                        case .failed: displayMsg = failureMsg.isEmpty ? "Rejected by restaurant." : "❌ Failed: \(failureMsg)"
+                        case .incomplete: displayMsg = "⚠️ Call disconnected."
+                        case .pending: displayMsg = "Processing..."
+                        }
+                        
+                        // Assemble the final item
+                        let item = ReservationItem(
+                            backendId: row.id,
+                            request: req,
+                            status: uiStatus,
+                            resultMessage: displayMsg,
+                            fullData: fullData
+                        )
+                        loadedItems.append(item)
+                    }
+                    
+                    let finalItems = loadedItems
+                    
+                    // 4. Update the main Published array on the Main Thread
+                    await MainActor.run {
+                        self.reservations = finalItems
+                        self.hasLoadedHistory = true
+                    }
+                    
+                } catch {
+                    print("❌ Failed to fetch user history: \(error.localizedDescription)")
+                }
+            }
+        }
     
     // MARK: - Supabase Realtime V2 Logic
         func startRealtimeListener(backendId: String, uiItemId: UUID) async {

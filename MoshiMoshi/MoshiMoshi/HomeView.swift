@@ -172,6 +172,9 @@ struct HomeView: View {
             }
             .navigationTitle("MoshiMoshi")
             .navigationBarTitleDisplayMode(.large)
+            .onAppear {
+                viewModel.fetchUserHistory()
+            }
         }
     }
 }

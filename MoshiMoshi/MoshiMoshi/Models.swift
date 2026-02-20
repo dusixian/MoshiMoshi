@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 
 struct ReservationRequest: Codable {
+    var userId: String = ""
     var restaurantName: String = ""
     var restaurantPhone: String = ""
     var customerName: String = ""
@@ -24,6 +25,7 @@ struct ReservationRequest: Codable {
     var specialRequests: String = ""
 
     enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
         case restaurantName = "restaurant_name"
         case restaurantPhone = "restaurant_phone"
         case customerName = "customer_name"
@@ -158,5 +160,41 @@ struct UserProfile: Codable, Equatable {
         case email = "email"
         case phone = "phone"
         case updatedAt = "updated_at"
+    }
+}
+
+
+// Receive from Supabase
+struct ReservationDBRow: Codable {
+    let id: String
+    let restaurantName: String
+    let restaurantPhone: String?
+    let customerName: String?
+    let customerPhone: String?
+    let customerEmail: String?
+    let reservationDate: String?
+    let reservationTime: String?
+    let partySize: Int?
+    let specialRequests: String?
+    let status: String
+    let failureReason: String?
+    let confirmationDetails: ReservationData.Details?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case restaurantName = "restaurant_name"
+        case restaurantPhone = "restaurant_phone"
+        case customerName = "customer_name"
+        case customerPhone = "customer_phone"
+        case customerEmail = "customer_email"
+        case reservationDate = "reservation_date"
+        case reservationTime = "reservation_time"
+        case partySize = "party_size"
+        case specialRequests = "special_requests"
+        case status
+        case failureReason = "failure_reason"
+        case confirmationDetails = "confirmation_details"
+        case createdAt = "created_at"
     }
 }
