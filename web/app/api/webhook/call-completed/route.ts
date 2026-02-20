@@ -9,27 +9,28 @@ export async function POST(request: NextRequest) {
     const results = body.data?.analysis?.data_collection_results || {};
 
     // "Confirmed", "Action Required", "Failed", "Incomplete"
-    const rawStatus = results.reservation_status?.value || results.reservation_status || "Incomplete";
+    const rawStatus = String(results.reservation_status?.value || results.reservation_status || "incomplete").toLowerCase();
     
     // database - failure_reason
     const requiredAction = results.required_action?.value || null;
     const rejectionReason = results.rejection_reason?.value || null;
 
-    // database - status
-    let dbStatus = 'completed';
+  // database - status
+    let dbStatus = 'completed'; 
     let isConfirmed = false;
     let finalFailureReason = null;
 
-    if (rawStatus === 'Confirmed') {
+    if (rawStatus === 'confirmed') {
+      dbStatus = 'completed';
       isConfirmed = true;
-    } else if (rawStatus === 'Action Required') {
-      dbStatus = 'action_required';
-      finalFailureReason = requiredAction;
-    } else if (rawStatus === 'Failed') {
+    } else if (rawStatus === 'action required') {
+      dbStatus = 'action_required'; 
+      finalFailureReason = requiredAction; 
+    } else if (rawStatus === 'failed') {
       dbStatus = 'failed';
       finalFailureReason = rejectionReason;
     } else {
-      dbStatus = 'incomplete';
+      dbStatus = 'incomplete'; 
     }
 
     console.log(`[Webhook] status - ElevenLabs: ${rawStatus} -> DB: ${dbStatus}, Confirmed: ${isConfirmed}`);
