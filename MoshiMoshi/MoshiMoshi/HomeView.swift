@@ -72,19 +72,50 @@ struct HomeView: View {
                         .padding(.horizontal)
                         .padding(.top, -10)
 
+                        // --- ACTION REQUIRED Section ---
+                        if !viewModel.actionRequiredItems.isEmpty {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.circle")
+                                        .font(.system(size: 22, weight: .bold))
+                                    Text("ACTION REQUIRED")
+                                        .font(.system(size: 24, weight: .bold, design: .serif))
+                                }
+                                .foregroundColor(.sushiTuna)
+                                .padding(.horizontal)
+
+                                ForEach(viewModel.actionRequiredItems.prefix(3)) { item in
+                                    ActionAlertCard(item: item)
+                                        .padding(.horizontal)
+                                }
+                        }
+                            .padding(.bottom, 8)
+                        }
+
+                        // --- Failed / Incomplete ---
+                        if !viewModel.failedOrIncompleteItems.isEmpty {
+                            VStack(alignment: .leading, spacing: 16) {
+                                ForEach(viewModel.failedOrIncompleteItems.prefix(3)) { item in
+                                    ActionAlertCard(item: item)
+                                        .padding(.horizontal)
+                                }
+                            }
+                            .padding(.bottom, 16)
+                        }
+
                         // --- Upcoming Events Section ---
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Upcoming Events")
-                                .font(.system(size: 24, weight: .semibold))
+                                .font(.system(size: 24, weight: .semibold, design: .serif))
                                 .foregroundColor(.sushiNori)
                                 .padding(.horizontal)
 
-                            if viewModel.reservations.filter({ $0.status == .confirmed }).isEmpty {
+                            if viewModel.upcomingReservations.isEmpty {
                                 // Empty State
                                 VStack(spacing: 12) {
-                                    Image(systemName: "calendar.badge.clock")
-                                        .font(.system(size: 48))
-                                        .foregroundColor(.gray.opacity(0.4))
+                                Image(systemName: "calendar.badge.clock")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.gray.opacity(0.4))
 
                                     Text("No upcoming reservations")
                                         .font(.system(size: 16))
@@ -95,10 +126,9 @@ struct HomeView: View {
                                 .background(Color.white)
                                 .cornerRadius(16)
                                 .padding(.horizontal)
-
                             } else {
                                 // Show only confirmed reservations
-                                ForEach(viewModel.reservations.filter { $0.status == .confirmed }.prefix(5)) { item in
+                                ForEach(viewModel.upcomingReservations.prefix(5)) { item in
                                     UpcomingEventCard(item: item)
                                         .padding(.horizontal)
                                 }
@@ -225,6 +255,64 @@ struct UpcomingEventCard: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
         return formatter.string(from: date)
+    }
+}
+
+// Action Alert Card Component (For Failed / Action Required / Incomplete)
+struct ActionAlertCard: View {
+    let item: ReservationItem
+    
+    var isActionRequired: Bool {
+        item.status == .actionRequired
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text(item.request.restaurantName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.sushiNori)
+                
+                Spacer()
+                
+                Text(item.status.rawValue)
+                    .font(.system(size: 12, weight: .bold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(item.status.color.opacity(0.15))
+                    .foregroundColor(item.status.color)
+                    .clipShape(Capsule())
+            }
+            
+            Text(item.fullData?.failureReason ?? item.resultMessage ?? "Issue detected. Please review.")
+                .font(.system(size: 14))
+                .foregroundColor(.gray)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            
+            Button(action: {
+                // TODO: Details Sheet
+            }) {
+                HStack(spacing: 6) {
+                    Text(isActionRequired ? "Resolve Issue" : "View Options")
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 12))
+                }
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(item.status == .incomplete ? .sushiNori : .white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(item.status.color)
+                .cornerRadius(20)
+            }
+        }
+        .padding(16)
+        .background(item.status.color.opacity(0.05))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(item.status.color.opacity(0.15), lineWidth: 1)
+        )
     }
 }
 
