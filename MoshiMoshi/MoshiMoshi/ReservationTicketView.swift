@@ -10,6 +10,8 @@ import SwiftUI
 
 struct ReservationTicketView: View {
     let item: ReservationItem
+    @State private var showResponseSheet = false
+    var isActionRequired: Bool { item.status == .actionRequired }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -65,19 +67,28 @@ struct ReservationTicketView: View {
             }
             .foregroundColor(.secondary)
             
+            var isActionRequired: Bool { item.status == .actionRequired }
+            
             // 3. Bottom Button
             Button(action: {
-                // TODO: Detail Page
+                if isActionRequired {
+                    showResponseSheet = true
+                } else {
+                    // TODO: Detail Page
+                    print("View Normal Details")
+                }
             }) {
-                Text("View Details")
+                Text(isActionRequired ? "Respond to Request" : "View Details")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 30)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
+                    .background(isActionRequired ? Color.sushiTuna : Color.clear)
+                    .foregroundColor(isActionRequired ? .white : .black)
+                    .cornerRadius(25)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 25)
+                            .stroke(isActionRequired ? Color.clear : Color.gray.opacity(0.3), lineWidth: 1)
+                                        )
             }
             .padding(.top, 5)
         }
@@ -85,6 +96,9 @@ struct ReservationTicketView: View {
         .background(Color.white)
         .cornerRadius(24)
         .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+        .sheet(isPresented: $showResponseSheet) {
+            ActionResponseView(item: item)
+        }
     }
     
     // MARK: - Helper Views & Formatters
