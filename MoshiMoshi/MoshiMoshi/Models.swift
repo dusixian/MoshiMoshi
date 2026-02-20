@@ -14,21 +14,23 @@ struct ReservationRequest: Codable {
     var restaurantPhone: String = ""
     var customerName: String = ""
     var customerPhone: String = ""
-    
+    var customerEmail: String = ""
+
     var dateTime: Date = Date()
-    
+
     var reservationDate: String = ""
     var reservationTime: String = ""
-    
+
     var partySize: Int = 2
     var specialRequests: String = ""
-    
+
     // Mapping keys to match Python/Next.js snake_case
     enum CodingKeys: String, CodingKey {
         case restaurantName = "restaurant_name"
         case restaurantPhone = "restaurant_phone"
         case customerName = "customer_name"
         case customerPhone = "customer_phone"
+        case customerEmail = "customer_email"
         case reservationDate = "reservation_date"
         case reservationTime = "reservation_time"
         case partySize = "party_size"
@@ -129,4 +131,21 @@ struct ReservationItem: Identifiable {
     var status: ReservationStatus
     var resultMessage: String?
     let timestamp = Date()
+}
+
+// MARK: - User profile (Supabase profiles table)
+struct UserProfile: Codable, Equatable {
+    var id: UUID?
+    var fullName: String?
+    var email: String?
+    var phone: String?
+    var updatedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case fullName = "full_name"
+        case email = "email"
+        case phone = "phone"
+        case updatedAt = "updated_at"
+    }
 }
