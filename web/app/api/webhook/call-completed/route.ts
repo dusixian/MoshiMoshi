@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (rawStatus === 'confirmed') {
       dbStatus = 'completed';
       isConfirmed = true;
-    } else if (rawStatus === 'action required') {
+    } else if (rawStatus === 'action_required') {
       dbStatus = 'action_required'; 
       finalFailureReason = requiredAction; 
     } else if (rawStatus === 'failed') {

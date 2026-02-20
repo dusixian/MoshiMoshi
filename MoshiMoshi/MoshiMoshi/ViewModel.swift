@@ -189,4 +189,18 @@ class ReservationViewModel: ObservableObject {
                !request.customerName.isEmpty &&
                !request.customerPhone.isEmpty
     }
+    
+    // Action Required
+    var actionRequiredItems: [ReservationItem] {
+        return reservations.filter { $0.status == .actionRequired }
+    }
+        
+    // Failed and Incomplete
+    var failedOrIncompleteItems: [ReservationItem] {
+        return reservations.filter { $0.status == .failed || $0.status == .incomplete }
+    }
+            
+    var upcomingReservations: [ReservationItem] {
+        return reservations.filter { $0.status == .confirmed }
+    }
 }
