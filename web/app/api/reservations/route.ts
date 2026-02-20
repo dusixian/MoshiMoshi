@@ -9,6 +9,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     const requiredFields = [
+      'user_id',
       'restaurant_name',
       'restaurant_phone', 
       'reservation_date',
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('reservations')
       .insert({
+        user_id: body.user_id,
         restaurant_name: body.restaurant_name,
         restaurant_phone: body.restaurant_phone,
         reservation_date: body.reservation_date,

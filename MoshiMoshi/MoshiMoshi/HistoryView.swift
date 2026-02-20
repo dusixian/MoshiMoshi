@@ -44,6 +44,9 @@ struct HistoryView: View {
             }
             .navigationTitle("History")
             .navigationBarTitleDisplayMode(.large)
+            .onAppear {
+                viewModel.fetchUserHistory()
+            }
         }
     }
 }

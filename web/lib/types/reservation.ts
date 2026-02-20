@@ -2,11 +2,14 @@ export type ReservationStatus =
   | 'pending'      // Just created, waiting to start call
   | 'calling'      // Call in progress
   | 'completed'    // Call finished (check booking_confirmed for result)
+  | 'action_required'
+  | 'incomplete'
   | 'failed'       // Call failed or couldn't connect
 
 // Database row type (matches actual database schema)
 export interface Reservation {
   id: string
+  user_id: string
   restaurant_name: string | null
   restaurant_phone: string
   reservation_date: string
@@ -19,14 +22,7 @@ export interface Reservation {
   status: ReservationStatus
   call_id: string | null
   booking_confirmed: boolean | null
-  confirmation_details: {
-    restaurant_response?: string
-    confirmed_date?: string
-    confirmed_time?: string
-    notes?: string
-    duration?: number
-    recording_url?: string
-  } | null
+  confirmation_details: any
   failure_reason: string | null
   created_at: string
   updated_at: string
@@ -36,6 +32,7 @@ export interface Reservation {
 
 // Request to create a new reservation
 export interface CreateReservationRequest {
+  user_id: string
   restaurant_name: string
   restaurant_phone: string
   reservation_date: string  // YYYY-MM-DD
