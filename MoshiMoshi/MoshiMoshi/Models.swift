@@ -43,6 +43,8 @@ struct ReservationData: Codable, Identifiable {
     let status: String
     let bookingConfirmed: Bool?
     let failureReason: String?
+    let updatedAt: String?
+    let audioUrl: String?
 
     struct Details: Codable {
         let summary: String?
@@ -100,6 +102,8 @@ struct ReservationData: Codable, Identifiable {
         case bookingConfirmed = "booking_confirmed"
         case failureReason = "failure_reason"
         case confirmationDetails = "confirmation_details"
+        case updatedAt = "updated_at"
+        case audioUrl = "audio_url"
     }
 }
 
@@ -180,6 +184,8 @@ struct ReservationDBRow: Codable {
     let failureReason: String?
     let confirmationDetails: ReservationData.Details?
     let createdAt: String?
+    let updatedAt: String?
+    let audioUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -196,5 +202,7 @@ struct ReservationDBRow: Codable {
         case failureReason = "failure_reason"
         case confirmationDetails = "confirmation_details"
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case audioUrl = "audio_url"
     }
 }

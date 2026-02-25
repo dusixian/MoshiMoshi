@@ -70,27 +70,35 @@ struct ReservationTicketView: View {
             var isActionRequired: Bool { item.status == .actionRequired }
             
             // 3. Bottom Button
-            Button(action: {
-                if isActionRequired {
+            if isActionRequired {
+                Button(action: {
                     showResponseSheet = true
-                } else {
-                    // TODO: Detail Page
-                    print("View Normal Details")
+                }) {
+                    Text("Respond to Request")
+                        .font(.system(size: 18, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.sushiTuna)
+                        .foregroundColor(.white)
+                        .cornerRadius(25)
                 }
-            }) {
-                Text(isActionRequired ? "Respond to Request" : "View Details")
-                    .font(.system(size: 18, weight: .medium))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(isActionRequired ? Color.sushiTuna : Color.clear)
-                    .foregroundColor(isActionRequired ? .white : .black)
-                    .cornerRadius(25)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(isActionRequired ? Color.clear : Color.gray.opacity(0.3), lineWidth: 1)
-                                        )
+                .padding(.top, 5)
+            } else {
+                NavigationLink(destination: ReservationDetailView(item: item)) {
+                    Text("View Details")
+                        .font(.system(size: 18, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.clear)
+                        .foregroundColor(.black)
+                        .cornerRadius(25)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 25)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        )
+                }
+                .padding(.top, 5)
             }
-            .padding(.top, 5)
         }
         .padding(24)
         .background(Color.white)
