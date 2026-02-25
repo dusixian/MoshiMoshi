@@ -162,6 +162,8 @@ class ReservationViewModel: ObservableObject {
                             status: row.status,
                             bookingConfirmed: nil,
                             failureReason: row.failureReason,
+                            updatedAt: row.updatedAt,
+                            audioUrl: row.audioUrl,
                             confirmationDetails: row.confirmationDetails
                         )
                         

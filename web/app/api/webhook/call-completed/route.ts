@@ -12,6 +12,9 @@ export async function POST(request: NextRequest) {
     const dataResults = analysis.data_collection_results || {};
     const metadata = rawData.metadata || {};
 
+    const realConvId = body.conversation_id || rawData.conversation_id || metadata.conversation_id;
+    console.log(`[Webhook] Extracted conversation_id: ${realConvId}`);
+
     const cleanTranscript = (rawData.transcript || []).map((msg: any) => ({
       role: msg.role || "unknown",
       message: msg.message || ""
@@ -78,6 +81,50 @@ export async function POST(request: NextRequest) {
     // const realConvId = body.conversation_id || body.data?.conversation_id;
     // .eq('conversation_id', realConvId) replace .eq('id', targetId)。
 
+    // Audio
+    let finalAudioUrl = null;
+    if (realConvId && process.env.ELEVENLABS_API_KEY) {
+      try {
+        console.log(`[Webhook] Fetching audio for ${realConvId}...`);
+        const audioRes = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${realConvId}/audio`, {
+          method: 'GET',
+          headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY }
+        });
+
+        if (audioRes.ok) {
+          const audioBlob = await audioRes.blob();
+          const audioBuffer = await audioBlob.arrayBuffer();
+          const fileName = `${realConvId}.mp3`;
+
+          // to call_audios bucket
+          const { error: uploadError } = await supabase.storage
+            .from('call_audios')
+            .upload(fileName, audioBuffer, {
+              contentType: 'audio/mpeg',
+              upsert: true
+            });
+
+          if (uploadError) {
+            console.error('[Webhook] Supabase storage upload failed:', uploadError);
+          } else {
+            const { data: publicUrlData } = supabase.storage
+              .from('call_audios')
+              .getPublicUrl(fileName);
+            
+            finalAudioUrl = publicUrlData.publicUrl;
+            console.log(`[Webhook] Successfully saved audio URL: ${finalAudioUrl}`);
+          }
+        } else {
+          console.error('[Webhook] Failed to fetch audio from ElevenLabs. Status:', audioRes.status);
+        }
+      } catch (audioError) {
+        console.error('[Webhook] Error during audio processing:', audioError);
+      }
+    } else {
+      console.warn('[Webhook] Missing realConvId or ELEVENLABS_API_KEY. Skipping audio fetch.');
+    }
+
+
     // update database
     const { error: updateError } = await supabase
       .from('reservations')
@@ -86,7 +133,7 @@ export async function POST(request: NextRequest) {
         booking_confirmed: isConfirmed,
         failure_reason: finalFailureReason,
         confirmation_details: cleanedDetails, 
-        
+        audio_url: finalAudioUrl,
         updated_at: new Date().toISOString()
       })
       .eq('id', targetId);
@@ -96,7 +143,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, updated_id: targetId });
+    return NextResponse.json({ success: true, updated_id: targetId, audio_saved: !!finalAudioUrl });
 
   } catch (error) {
     console.error('[Webhook] Fatal error:', error);
