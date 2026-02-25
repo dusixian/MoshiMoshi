@@ -94,7 +94,7 @@ struct ReservationDetailView: View {
         .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
     }
     
-    // Helpers
+    // MARK: - UI Helpers
     private func InfoBlock(icon: String, title: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Circle()
@@ -124,18 +124,24 @@ struct ReservationDetailView: View {
     }
 }
 
-// MARK: - Transcript Card
+// MARK: - Transcript & Audio Card
 struct CallHistoryExpandableCard: View {
     let item: ReservationItem
     @State private var isExpanded = false
     @State private var selectedLanguage = "English"
     
+    // Audio Player States
     @State private var audioPlayer: AVPlayer?
     @State private var isPlaying = false
+    @State private var currentTime: Double = 0.0
+    @State private var totalDuration: Double = 0.0
+    @State private var isDragging = false
+    @State private var isFinished = false // Tracks if audio reached the end
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
+            
+            // Header Button (Tap to expand/collapse)
             Button(action: {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     isExpanded.toggle()
@@ -148,7 +154,7 @@ struct CallHistoryExpandableCard: View {
                     let bgColor = isSuccess ? Color.green.opacity(0.15) : (isFailed ? Color.gray.opacity(0.2) : Color.sushiSalmon.opacity(0.15))
                     let iconName = isSuccess ? "phone.badge.checkmark" : (isFailed ? "phone.down.fill" : "phone.arrow.up.right.fill")
                     
-                    // Left Icon
+                    // Status Icon
                     Circle()
                         .fill(bgColor)
                         .frame(width: 48, height: 48)
@@ -157,13 +163,12 @@ struct CallHistoryExpandableCard: View {
                                 .foregroundColor(iconColor)
                         )
                     
-                    // Middle
+                    // Call Details
                     VStack(alignment: .leading, spacing: 4) {
                         Text(formatTime(item.fullData?.updatedAt ?? ""))
                             .font(.subheadline.bold())
                             .foregroundColor(.black)
                         
-                        // Summary
                         let summary = item.fullData?.confirmationDetails?.summary ?? "Call finished. Review details below."
                         Text(summary)
                             .font(.caption)
@@ -180,8 +185,6 @@ struct CallHistoryExpandableCard: View {
                     }
                     
                     Spacer()
-                    
-                    // Right
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .foregroundColor(.gray)
                 }
@@ -190,49 +193,56 @@ struct CallHistoryExpandableCard: View {
             }
             .buttonStyle(PlainButtonStyle())
             
-            // Audio Player & Transcript
+            // Expanded Content (Audio Player & Transcript)
             if isExpanded {
                 VStack(alignment: .leading, spacing: 16) {
                     Divider()
                     
+                    // MARK: - Authentic Audio Player
                     if let audioUrlString = item.fullData?.audioUrl, let _ = URL(string: audioUrlString) {
-                        HStack {
+                        HStack(spacing: 12) {
+                            // Play/Pause Button
                             Button(action: toggleAudio) {
                                 Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
                                     .resizable()
                                     .frame(width: 32, height: 32)
                                     .foregroundColor(.sushiSalmon)
                             }
-                                                
-                            GeometryReader { geo in
-                            Capsule()
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(height: 4)
-                                .overlay(
-                                Capsule()
-                                    .fill(Color.sushiSalmon)
-                                    .frame(width: isPlaying ? geo.size.width * 0.8 : 0), // 简单的动画示意
-                                    alignment: .leading
-                                )
-                                .animation(.linear(duration: isPlaying ? 20 : 0), value: isPlaying)
+                            
+                            // Interactive Slider for scrubbing
+                            Slider(value: Binding(
+                                get: { self.currentTime },
+                                set: { newValue in
+                                    self.currentTime = newValue
+                                    // Seek to the exact time the user drags to
+                                    audioPlayer?.seek(to: CMTime(seconds: newValue, preferredTimescale: 1000))
+                                }
+                            ), in: 0...(totalDuration > 0 ? totalDuration : 1)) { editing in
+                                self.isDragging = editing
                             }
-                        .frame(height: 32)
+                            .tint(.sushiSalmon)
+                            
+                            // Dynamic Time Remaining
+                            Text(formatDuration(totalDuration - currentTime))
+                                .font(.caption.monospacedDigit())
+                                .foregroundColor(.gray)
+                                .frame(width: 40, alignment: .trailing)
                         }
                     } else {
+                        // Fallback UI if audio URL is missing
                         HStack {
                             Image(systemName: "speaker.slash.fill").foregroundColor(.gray)
                             Text("Audio recording not available").font(.caption).foregroundColor(.gray)
                         }
                     }
                     
-                    // Transcript Language Toggle
+                    // MARK: - Transcript Language Toggle
                     HStack {
                         Image(systemName: "doc.plaintext")
                         Text("TRANSCRIPT")
                             .font(.subheadline.bold())
                         Spacer()
                         
-                        // Mock Picker
                         HStack(spacing: 0) {
                             Text("English")
                                 .font(.caption)
@@ -255,12 +265,22 @@ struct CallHistoryExpandableCard: View {
                     }
                     .padding(.top, 8)
                     
-                    // Transcript from Database
+                    // MARK: - Transcript Chat List
                     VStack(alignment: .leading, spacing: 8) {
                         if let transcript = item.fullData?.confirmationDetails?.transcript, !transcript.isEmpty {
                             ForEach(transcript) { msg in
-                                Text("**\(msg.role.capitalized):** \(msg.message)")
-                                    .padding(.bottom, 2)
+                                let displayRole: String = {
+                                    let rawRole = msg.role.lowercased()
+                                    if rawRole == "user" {
+                                        return "Restaurant"
+                                    } else if rawRole == "agent" {
+                                        return "MoshiMoshi" // 换成你的专属 Agent 名字！
+                                    } else {
+                                        return msg.role.capitalized
+                                    }
+                                }()
+                                Text("**\(displayRole):** \(msg.message)")
+                                    .padding(.bottom, 4)
                             }
                         } else {
                             Text("No transcript available.")
@@ -283,30 +303,84 @@ struct CallHistoryExpandableCard: View {
         }
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
+        
+        // Stops playback if the card is collapsed
         .onChange(of: isExpanded) { newValue in
             if !newValue {
                 audioPlayer?.pause()
                 isPlaying = false
             }
         }
+        
+        // Stops playback if the user leaves the detail page
+        .onDisappear {
+            audioPlayer?.pause()
+            isPlaying = false
+        }
     }
     
+    // MARK: - Audio Controller Logic
     private func toggleAudio() {
         guard let urlString = item.fullData?.audioUrl, let url = URL(string: urlString) else { return }
         
+        // Initialize player only on first tap
         if audioPlayer == nil {
             let playerItem = AVPlayerItem(url: url)
             audioPlayer = AVPlayer(playerItem: playerItem)
-        }
             
+            // 1. Fetch exact audio duration asynchronously
+            Task {
+                if let duration = try? await playerItem.asset.load(.duration) {
+                    DispatchQueue.main.async {
+                        self.totalDuration = duration.seconds
+                    }
+                }
+            }
+            
+            // 2. Add an observer to update the slider every 0.1 seconds
+            let interval = CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+            audioPlayer?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
+                if !self.isDragging {
+                    self.currentTime = time.seconds
+                }
+            }
+            
+            // 3. Listen for the exact moment the audio finishes playing
+            NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: playerItem,
+                queue: .main
+            ) { _ in
+                self.isPlaying = false
+                self.isFinished = true
+                self.currentTime = self.totalDuration // Snap to end
+            }
+        }
+        
+        // Handle Play/Pause and Replay
         if isPlaying {
             audioPlayer?.pause()
+            isPlaying = false
         } else {
+            // FIX: If playback finished previously, rewind to 0:00 before playing
+            if isFinished || currentTime >= totalDuration {
+                audioPlayer?.seek(to: .zero)
+                isFinished = false
+            }
             audioPlayer?.play()
+            isPlaying = true
         }
-        isPlaying.toggle()
     }
     
+    // Converts seconds into a clean "1:20" format
+    private func formatDuration(_ seconds: Double) -> String {
+        if seconds.isNaN || seconds < 0 { return "0:00" }
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+    
+    // Converts ISO string to "Feb 5, 2:45 PM"
     private func formatTime(_ dateString: String) -> String {
         if dateString.isEmpty { return "Recently" }
         
