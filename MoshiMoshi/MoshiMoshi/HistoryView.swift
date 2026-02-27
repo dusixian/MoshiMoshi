@@ -51,7 +51,7 @@ struct HistoryView: View {
                                         title: "All",
                                         isSelected: statusFilter == nil
                                     ) { statusFilter = nil }
-                                    ForEach([ReservationStatus.confirmed, .actionRequired, .failed, .incomplete, .pending], id: \.self) { status in
+                                    ForEach([ReservationStatus.confirmed, .actionRequired, .failed, .incomplete, .pending, .cancelled], id: \.self) { status in
                                         StatusFilterChip(
                                             title: status.rawValue,
                                             isSelected: statusFilter == status
@@ -82,7 +82,7 @@ struct HistoryView: View {
 
                         } else {
                             ForEach(filteredReservations) { item in
-                                ReservationTicketView(item: item)
+                                ReservationTicketView(item: item, viewModel: viewModel)
                                     .padding(.horizontal)
                             }
                         }

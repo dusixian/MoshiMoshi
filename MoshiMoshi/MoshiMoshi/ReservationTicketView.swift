@@ -10,6 +10,7 @@ import SwiftUI
 
 struct ReservationTicketView: View {
     let item: ReservationItem
+    @ObservedObject var viewModel: ReservationViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -66,7 +67,7 @@ struct ReservationTicketView: View {
             .foregroundColor(.secondary)
 
             // 3. View Details — one tap to see full details (and Respond to Request if action required)
-            NavigationLink(destination: ReservationDetailView(item: item)) {
+            NavigationLink(destination: ReservationDetailView(item: item, viewModel: viewModel)) {
                 Text("View Details")
                     .font(.system(size: 18, weight: .medium))
                     .frame(maxWidth: .infinity)

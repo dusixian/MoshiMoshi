@@ -167,6 +167,8 @@ class ReservationViewModel: ObservableObject {
                             uiStatus = .failed
                         } else if rawStatus == "incomplete" {
                             uiStatus = .incomplete
+                        } else if rawStatus == "cancelled" {
+                            uiStatus = .cancelled
                         }
                         
                         // Reconstruct the full data object for the details sheet
@@ -191,6 +193,7 @@ class ReservationViewModel: ObservableObject {
                         case .failed: displayMsg = failureMsg.isEmpty ? "Rejected by restaurant." : "❌ Failed: \(failureMsg)"
                         case .incomplete: displayMsg = "⚠️ Call disconnected."
                         case .pending: displayMsg = "Processing..."
+                        case .cancelled: displayMsg = "Cancelled"
                         }
                         
                         // Assemble the final item
@@ -285,7 +288,10 @@ class ReservationViewModel: ObservableObject {
                     
             case "incomplete":
                 updateTicket(id: uiItemId, status: .incomplete, message: "⚠️ Call disconnected.", fullRecord: record)
-                    
+
+            case "cancelled":
+                updateTicket(id: uiItemId, status: .cancelled, message: "Cancelled", fullRecord: record)
+
             default:
                 print("Received unknown status update: \(record.status)")
             }
@@ -313,9 +319,18 @@ class ReservationViewModel: ObservableObject {
                !request.customerPhone.isEmpty
     }
     
-    // Action Required
+    /// Action Required, excluding past events (reservation time in Japan time before now).
     var actionRequiredItems: [ReservationItem] {
-        return reservations.filter { $0.status == .actionRequired }
+        let now = Date()
+        return reservations.filter { item in
+            guard item.status == .actionRequired else { return false }
+            return item.request.dateTime > now
+        }
+    }
+
+    /// Mark a reservation as cancelled (local update; optionally sync to backend later).
+    func cancelReservation(uiItemId: UUID) {
+        updateTicket(id: uiItemId, status: .cancelled, message: "Cancelled")
     }
         
     // Failed and Incomplete

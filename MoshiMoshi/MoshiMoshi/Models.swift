@@ -118,7 +118,8 @@ enum ReservationStatus: String, Codable {
     case actionRequired = "Action Required"
     case failed = "Failed"
     case incomplete = "Incomplete"
-    
+    case cancelled = "Cancelled"
+
     var color: Color {
         switch self {
         case .pending: return .gray
@@ -126,9 +127,10 @@ enum ReservationStatus: String, Codable {
         case .actionRequired: return .sushiTuna
         case .failed: return .black
         case .incomplete: return .yellow
+        case .cancelled: return .gray
         }
     }
-    
+
     var icon: String {
         switch self {
         case .pending: return "phone.connection"
@@ -136,6 +138,7 @@ enum ReservationStatus: String, Codable {
         case .actionRequired: return "exclamationmark.triangle.fill"
         case .failed: return "xmark.circle.fill"
         case .incomplete: return "phone.down.circle.fill"
+        case .cancelled: return "xmark.circle"
         }
     }
 }
