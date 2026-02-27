@@ -40,7 +40,7 @@ struct HistoryView: View {
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(.sushiNori)
                             }
-                            .tint(.sushiTuna)
+                            .tint(.sushiSalmon)
 
                             Text("Status")
                                 .font(.system(size: 14, weight: .semibold))
@@ -99,7 +99,7 @@ struct HistoryView: View {
     }
 }
 
-// MARK: - Filter chip for status
+// MARK: - Filter chip for status (matches Discover FilterChip colors)
 private struct StatusFilterChip: View {
     let title: String
     let isSelected: Bool
@@ -108,16 +108,12 @@ private struct StatusFilterChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
                 .foregroundColor(isSelected ? .white : .sushiNori)
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color.sushiTuna : Color.white)
+                .background(isSelected ? Color.sushiSalmon : Color.white)
                 .cornerRadius(20)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(isSelected ? Color.clear : Color.gray.opacity(0.3), lineWidth: 1)
-                )
         }
         .buttonStyle(.plain)
     }
