@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(f''Total restaurants: {len\\(d[\"\"restaurants\"\"]\\)}''\\); print\\(''Fields:'', list\\(d[''restaurants''][0].keys\\(\\)\\)\\)\")",
+      "Bash(git add MoshiMoshi/MoshiMoshi/DiscoverView.swift MoshiMoshi/MoshiMoshi/HomeView.swift MoshiMoshi/MoshiMoshi/Models.swift MoshiMoshi/MoshiMoshi/ReservationFormView.swift suggested_list/fetch_images.mjs suggested_list/import_restaurants.sql suggested_list/push_to_supabase.mjs)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
