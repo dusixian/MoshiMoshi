@@ -6,10 +6,12 @@
 //
 
 import SwiftUI
+import Supabase
 
 struct HomeView: View {
     @ObservedObject var viewModel: ReservationViewModel
     @Binding var selectedTab: Int
+    @State private var suggestedRestaurants: [Restaurant] = []
 
     var body: some View {
         NavigationView {
@@ -146,23 +148,9 @@ struct HomeView: View {
                                 GridItem(.flexible(), spacing: 12),
                                 GridItem(.flexible(), spacing: 12)
                             ], spacing: 16) {
-                                SuggestedDiningCard(
-                                    name: "Ren Omakase",
-                                    priceRange: "From $100",
-                                    cuisine: "Omakase",
-                                    location: "Kyoto",
-                                    rating: 4.8,
-                                    imageName: "restaurant1"
-                                )
-
-                                SuggestedDiningCard(
-                                    name: "Sushi Saito",
-                                    priceRange: "From $150",
-                                    cuisine: "Sushi",
-                                    location: "Tokyo",
-                                    rating: 4.9,
-                                    imageName: "restaurant2"
-                                )
+                                ForEach(suggestedRestaurants) { restaurant in
+                                    SuggestedDiningCard(restaurant: restaurant, viewModel: viewModel)
+                                }
                             }
                             .padding(.horizontal)
                         }
@@ -175,10 +163,25 @@ struct HomeView: View {
             .onAppear {
                 viewModel.fetchUserHistory()
             }
+            .task {
+                await loadSuggested()
+            }
+        }
+    }
+
+    private func loadSuggested() async {
+        do {
+            let all: [Restaurant] = try await SupabaseClientManager.client
+                .from("resturant")
+                .select()
+                .execute()
+                .value
+            suggestedRestaurants = Array(all.shuffled().prefix(2))
+        } catch {
+            print("Failed to load suggested restaurants:", error)
         }
     }
 }
-
 
 // Upcoming Event Card Component
 struct UpcomingEventCard: View {
@@ -359,52 +362,50 @@ struct ActionAlertCard: View {
 
 // Suggested Dining Card Component
 struct SuggestedDiningCard: View {
-    let name: String
-    let priceRange: String
-    let cuisine: String
-    let location: String
-    let rating: Double
-    let imageName: String
+    let restaurant: Restaurant
+    @ObservedObject var viewModel: ReservationViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Restaurant Image
-            ZStack(alignment: .topTrailing) {
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.sushiSalmon.opacity(0.3), Color.sushiNori.opacity(0.3)]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(height: 120)
-
-                // Rating Badge
-                HStack(spacing: 4) {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.orange)
-                    Text(String(format: "%.1f", rating))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.sushiNori)
+            imagePlaceholder
+                .frame(maxWidth: .infinity, minHeight: 120, maxHeight: 120)
+                .overlay {
+                    if let imageUrl = restaurant.imageUrl, let url = URL(string: imageUrl) {
+                        AsyncImage(url: url) { phase in
+                            if case .success(let image) = phase {
+                                image.resizable().scaledToFill()
+                            }
+                        }
+                    }
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.white.opacity(0.95))
-                .cornerRadius(12)
-                .padding(8)
-            }
-            .cornerRadius(12)
+                .overlay(alignment: .topTrailing) {
+                    if let rating = restaurant.googleRating {
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.orange)
+                            Text(String(format: "%.1f", rating))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.sushiNori)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.95))
+                        .cornerRadius(12)
+                        .padding(8)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12))
 
             // Restaurant Details
             VStack(alignment: .leading, spacing: 6) {
-                Text(name)
+                Text(restaurant.name)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.sushiNori)
                     .lineLimit(1)
 
-                Text("\(priceRange) · \(cuisine)")
+                Text([priceText, restaurant.cuisine].compactMap { $0 }.joined(separator: " · "))
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
                     .lineLimit(1)
@@ -413,15 +414,12 @@ struct SuggestedDiningCard: View {
                     Image(systemName: "mappin.circle.fill")
                         .font(.system(size: 10))
                         .foregroundColor(.sushiSalmon)
-                    Text(location)
+                    Text(restaurant.city ?? "")
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
                 }
 
-                // Book Table Button
-                Button(action: {
-                    // No action for now
-                }) {
+                NavigationLink(destination: ReservationFormView(viewModel: viewModel, restaurant: restaurant)) {
                     Text("Book Table")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
@@ -435,8 +433,24 @@ struct SuggestedDiningCard: View {
             .padding(12)
         }
         .background(Color.white)
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+    }
+
+    private var priceText: String? {
+        guard let price = restaurant.pricePerPersonUsdApprox else { return nil }
+        return "From $\(price)"
+    }
+
+    private var imagePlaceholder: some View {
+        Rectangle()
+            .fill(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.sushiSalmon.opacity(0.3), Color.sushiNori.opacity(0.3)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
     }
 }
 

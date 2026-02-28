@@ -10,6 +10,7 @@ import SwiftUI
 
 struct ReservationFormView: View {
     @ObservedObject var viewModel: ReservationViewModel
+    var restaurant: Restaurant? = nil
     @StateObject private var profileService = ProfileService()
     @Environment(\.dismiss) var dismiss
 
@@ -121,6 +122,12 @@ struct ReservationFormView: View {
         }
         .navigationTitle("New Reservation")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if let r = restaurant {
+                viewModel.request.restaurantName = r.name
+                viewModel.request.restaurantPhone = r.phone ?? ""
+            }
+        }
         .task { await loadContactFromDB() }
         .onChange(of: phoneCountryCode) { _ in syncPhoneToRequest() }
         .onChange(of: phoneNational) { _ in syncPhoneToRequest() }

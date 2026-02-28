@@ -153,6 +153,41 @@ struct ReservationItem: Identifiable {
     let timestamp = Date()
 }
 
+// MARK: - Restaurant (Supabase resturant table)
+struct Restaurant: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let nameJa: String?
+    let city: String?
+    let area: String?
+    let address: String?
+    let phone: String?
+    let googleRating: Double?
+    let pricePerPersonUsdApprox: Int?
+    let cuisine: String?
+    let michelinStars: Int?
+    let reservationDifficulty: String?
+    let notes: String?
+    let imageUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case nameJa = "name_ja"
+        case city
+        case area
+        case address
+        case phone
+        case googleRating = "google_rating"
+        case pricePerPersonUsdApprox = "price_per_person_usd_approx"
+        case cuisine
+        case michelinStars = "michelin_stars"
+        case reservationDifficulty = "reservation_difficulty"
+        case notes
+        case imageUrl = "image_url"
+    }
+}
+
 // MARK: - User profile (Supabase profiles table)
 struct UserProfile: Codable, Equatable {
     var id: UUID?
