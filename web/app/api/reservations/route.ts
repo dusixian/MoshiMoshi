@@ -56,28 +56,102 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // TODO: Here you would trigger the ElevenLabs agent outbound call
-    // For now, we just mock it by updating status to 'calling'
-    console.log(`[Mock] Would initiate call to ${body.restaurant_phone} for reservation ${data.id}`)
+    const apiKey = process.env.ELEVENLABS_API_KEY
+    if (!apiKey) {
+      console.error('ELEVENLABS_API_KEY is not set')
+      return NextResponse.json(
+        { error: 'Server misconfiguration: ELEVENLABS_API_KEY missing' },
+        { status: 500 }
+      )
+    }
 
-    // Update status to 'calling' to simulate call initiation
-    const { error: updateError } = await supabase
-      .from('reservations')
-      .update({ status: 'calling', call_id: `mock_call_${data.id}` })
-      .eq('id', data.id)
+    // Dynamic variables for the agent (match ElevenLabs convai dashboard)
+    const dateFormatted = body.reservation_date.replace(/-/g, '/') // YYYY-MM-DD -> YYYY/MM/DD
+    const dynamicVariables: Record<string, string | number> = {
+      restaurant_name: body.restaurant_name,
+      date: dateFormatted,
+      time: body.reservation_time,
+      party_size: body.party_size,
+      name: body.customer_name,
+      customer_phone: body.customer_phone,
+      special_requests: body.special_requests?.trim() || 'None',
+    }
 
-    if (updateError) {
-      console.error('Failed to update status:', updateError)
+    const outboundPayload = {
+      agent_id: 'agent_1901kfebxqqmf3t8199cjbg2h9dt',
+      agent_phone_number_id: 'phnum_7201kjre5njbethvynsv2e39tcjj',
+      to_number: body.restaurant_phone,
+      conversation_initiation_client_data: {
+        dynamic_variables: dynamicVariables,
+      },
+    }
+
+    let callStatus: 'calling' | 'pending' = 'pending'
+    let callId: string | null = null
+
+    try {
+      const elRes = await fetch('https://api.elevenlabs.io/v1/convai/twilio/outbound-call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'xi-api-key': apiKey,
+        },
+        body: JSON.stringify(outboundPayload),
+      })
+
+      const elData = await elRes.json().catch(() => ({})) as {
+        success?: boolean
+        message?: string
+        conversation_id?: string
+        callSid?: string
+      }
+
+      if (!elRes.ok) {
+        console.error('[ElevenLabs outbound] Error:', elRes.status, elData)
+        return NextResponse.json(
+          {
+            error: 'Failed to initiate outbound call',
+            details: elData?.message || elRes.statusText,
+            reservation: data,
+          },
+          { status: 502 }
+        )
+      }
+
+      if (elData?.success && (elData.conversation_id || elData.callSid)) {
+        callId = elData.conversation_id ?? elData.callSid ?? null
+        callStatus = 'calling'
+      }
+    } catch (err) {
+      console.error('[ElevenLabs outbound] Request failed:', err)
+      return NextResponse.json(
+        {
+          error: 'Failed to reach ElevenLabs outbound call API',
+          reservation: data,
+        },
+        { status: 502 }
+      )
+    }
+
+    if (callId) {
+      const { error: updateError } = await supabase
+        .from('reservations')
+        .update({ status: callStatus, call_id: callId })
+        .eq('id', data.id)
+
+      if (updateError) {
+        console.error('Failed to update reservation with call_id:', updateError)
+      }
     }
 
     return NextResponse.json({
       success: true,
       reservation: {
         ...data,
-        status: 'calling',
-        call_id: `mock_call_${data.id}`
+        status: callStatus,
+        call_id: callId,
       },
-      message: 'Reservation created, call initiated'
+      message: callStatus === 'calling' ? 'Reservation created, call initiated' : 'Reservation created',
     }, { status: 201 })
 
   } catch (error) {
