@@ -20,6 +20,7 @@ export interface Reservation {
   customer_email: string | null
   special_requests: string | null
   status: ReservationStatus
+  conversation_id: string | null
   call_id: string | null
   booking_confirmed: boolean | null
   confirmation_details: any

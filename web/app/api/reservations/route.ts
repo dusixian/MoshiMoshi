@@ -87,7 +87,8 @@ export async function POST(request: NextRequest) {
     }
 
     let callStatus: 'calling' | 'pending' = 'pending'
-    let callId: string | null = null
+    let conversationId: string | null = null
+    let callSid: string | null = null
 
     try {
       const elRes = await fetch('https://api.elevenlabs.io/v1/convai/twilio/outbound-call', {
@@ -108,39 +109,81 @@ export async function POST(request: NextRequest) {
 
       if (!elRes.ok) {
         console.error('[ElevenLabs outbound] Error:', elRes.status, elData)
+        const errMessage = elData?.message || elRes.statusText || 'Outbound call failed'
+        await supabase
+          .from('reservations')
+          .update({ status: 'failed', failure_reason: errMessage })
+          .eq('id', data.id)
         return NextResponse.json(
           {
+            success: false,
             error: 'Failed to initiate outbound call',
-            details: elData?.message || elRes.statusText,
-            reservation: data,
+            message: errMessage,
+            reservation: { ...data, status: 'failed', failure_reason: errMessage },
           },
           { status: 502 }
         )
       }
 
-      if (elData?.success && (elData.conversation_id || elData.callSid)) {
-        callId = elData.conversation_id ?? elData.callSid ?? null
+      conversationId = elData.conversation_id ?? null
+      callSid = elData.callSid ?? null
+
+      if (elData?.success && (conversationId || callSid)) {
         callStatus = 'calling'
+      } else {
+        // success is not true: mark reservation as failed and store reason
+        const failureReason = elData?.message || 'Outbound call failed'
+        await supabase
+          .from('reservations')
+          .update({
+            status: 'failed',
+            failure_reason: failureReason,
+            ...(conversationId && { conversation_id: conversationId }),
+            ...(callSid && { call_id: callSid }),
+          })
+          .eq('id', data.id)
+        return NextResponse.json({
+          success: false,
+          message: failureReason,
+          reservation: {
+            ...data,
+            status: 'failed',
+            failure_reason: failureReason,
+            conversation_id: conversationId,
+            call_id: callSid,
+          },
+        }, { status: 200 })
       }
     } catch (err) {
       console.error('[ElevenLabs outbound] Request failed:', err)
+      const errMessage = err instanceof Error ? err.message : 'Network error'
+      await supabase
+        .from('reservations')
+        .update({ status: 'failed', failure_reason: errMessage })
+        .eq('id', data.id)
       return NextResponse.json(
         {
+          success: false,
           error: 'Failed to reach ElevenLabs outbound call API',
-          reservation: data,
+          message: errMessage,
+          reservation: { ...data, status: 'failed', failure_reason: errMessage },
         },
         { status: 502 }
       )
     }
 
-    if (callId) {
+    if (conversationId || callSid) {
       const { error: updateError } = await supabase
         .from('reservations')
-        .update({ status: callStatus, call_id: callId })
+        .update({
+          status: callStatus,
+          ...(conversationId && { conversation_id: conversationId }),
+          ...(callSid && { call_id: callSid }),
+        })
         .eq('id', data.id)
 
       if (updateError) {
-        console.error('Failed to update reservation with call_id:', updateError)
+        console.error('Failed to update reservation with conversation_id/call_id:', updateError)
       }
     }
 
@@ -149,7 +192,8 @@ export async function POST(request: NextRequest) {
       reservation: {
         ...data,
         status: callStatus,
-        call_id: callId,
+        conversation_id: conversationId,
+        call_id: callSid,
       },
       message: callStatus === 'calling' ? 'Reservation created, call initiated' : 'Reservation created',
     }, { status: 201 })
