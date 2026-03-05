@@ -5,6 +5,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log('[Webhook] Received payload at:', new Date().toISOString());
+    console.log('[Webhook] Full payload:', JSON.stringify(body, null, 2));
 
 
     const rawData = body.data || {};
