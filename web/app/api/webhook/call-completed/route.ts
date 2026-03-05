@@ -5,8 +5,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log('[Webhook] Received payload at:', new Date().toISOString());
+    console.log('[Webhook] Webhook type:', body.type);
     console.log('[Webhook] Full payload:', JSON.stringify(body, null, 2));
 
+    // Only process post_call_transcription webhooks
+    // post_call_audio webhooks don't have transcript/analysis data
+    if (body.type !== 'post_call_transcription') {
+      console.log('[Webhook] Skipping non-transcription webhook:', body.type);
+      return NextResponse.json({ success: true, message: 'Non-transcription webhook ignored' });
+    }
 
     const rawData = body.data || {};
     const analysis = rawData.analysis || {};
