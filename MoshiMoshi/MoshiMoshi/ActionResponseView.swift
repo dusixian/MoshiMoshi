@@ -38,7 +38,8 @@ struct ActionResponseView: View {
                             .foregroundColor(.sushiTuna)
                         
                         // Prioritize the specific required action value, fall back to failure reason
-                        let reason = item.fullData?.confirmationDetails?.results?.requiredAction?.value
+                        let latestConversation = item.conversations.first
+                        let reason = latestConversation?.failureReason
                                      ?? item.fullData?.failureReason
                                      ?? "Additional information is required."
                         
