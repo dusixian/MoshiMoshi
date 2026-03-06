@@ -1,12 +1,30 @@
-export type ReservationStatus = 
-  | 'pending'      // Just created, waiting to start call
-  | 'calling'      // Call in progress
-  | 'completed'    // Call finished (check booking_confirmed for result)
-  | 'action_required'
-  | 'incomplete'
-  | 'failed'       // Call failed or couldn't connect
+export type ReservationStatus =
+  | 'pending'           // Just created, waiting to start call
+  | 'calling'           // Call in progress
+  | 'confirmed'         // Reservation confirmed
+  | 'action_required'   // Needs user response
+  | 'incomplete'        // Call incomplete
+  | 'failed'            // Call failed or couldn't connect
 
-// Database row type (matches actual database schema)
+// Conversation table - stores individual call attempts
+export interface Conversation {
+  id: string
+  reservation_id: string
+  attempt_number: number
+  conversation_id: string | null
+  call_id: string | null
+  call_started_at: string | null
+  call_ended_at: string | null
+  created_at: string
+  status: ReservationStatus
+  booking_confirmed: boolean
+  confirmation_details: any
+  failure_reason: string | null
+  audio_url: string | null
+  user_response: string | null
+}
+
+// Reservation table - stores reservation info (订单本身)
 export interface Reservation {
   id: string
   user_id: string
@@ -20,15 +38,22 @@ export interface Reservation {
   customer_email: string | null
   special_requests: string | null
   status: ReservationStatus
+  created_at: string
+  updated_at: string
+
+  // New fields
+  current_summary: string | null
+  latest_conversation_id: string | null
+
+  // Old fields (to be deprecated after migration)
   conversation_id: string | null
   call_id: string | null
   booking_confirmed: boolean | null
   confirmation_details: any
   failure_reason: string | null
-  created_at: string
-  updated_at: string
   call_started_at: string | null
   call_ended_at: string | null
+  audio_url: string | null
 }
 
 // Request to create a new reservation

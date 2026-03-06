@@ -67,25 +67,26 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Find reservation by conversation_id
+    // Find conversation by conversation_id
     if (!convId) {
       console.error('[Webhook] Missing conversation_id in webhook payload');
       return NextResponse.json({ success: false, message: 'Missing conversation_id' }, { status: 400 });
     }
 
-    const { data: targetReservation, error: fetchError } = await supabase
-      .from('reservations')
-      .select('id')
+    const { data: targetConversation, error: fetchError } = await supabase
+      .from('conversations')
+      .select('id, reservation_id')
       .eq('conversation_id', convId)
       .single();
 
-    if (fetchError || !targetReservation) {
-      console.error('[Webhook] Did not find reservation with conversation_id:', convId, fetchError);
-      return NextResponse.json({ success: false, message: 'No matching reservation found' }, { status: 200 });
+    if (fetchError || !targetConversation) {
+      console.error('[Webhook] Did not find conversation with conversation_id:', convId, fetchError);
+      return NextResponse.json({ success: false, message: 'No matching conversation found' }, { status: 200 });
     }
 
-    const targetId = targetReservation.id;
-    console.log(`[Webhook] Found reservation ID: ${targetId} for conversation_id: ${convId}`);
+    const conversationId = targetConversation.id;
+    const reservationId = targetConversation.reservation_id;
+    console.log(`[Webhook] Found conversation ID: ${conversationId}, reservation ID: ${reservationId}`);
 
     // Audio
     let finalAudioUrl = null;
@@ -131,25 +132,54 @@ export async function POST(request: NextRequest) {
     }
 
 
-    // update database
-    const { error: updateError } = await supabase
-      .from('reservations')
+    // Update conversations table with call details
+    const { error: updateConversationError } = await supabase
+      .from('conversations')
       .update({
         status: dbStatus,
         booking_confirmed: isConfirmed,
         failure_reason: finalFailureReason,
-        confirmation_details: cleanedDetails, 
+        confirmation_details: cleanedDetails,
         audio_url: finalAudioUrl,
-        updated_at: new Date().toISOString()
+        call_ended_at: new Date().toISOString()
       })
-      .eq('id', targetId);
+      .eq('id', conversationId);
 
-    if (updateError) {
-      console.error('[Webhook] Supabase update error:', updateError);
+    if (updateConversationError) {
+      console.error('[Webhook] Conversation update error:', updateConversationError);
       return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, updated_id: targetId, audio_saved: !!finalAudioUrl });
+    // Update reservations table with overall status
+    const currentSummary = dbStatus === 'action_required'
+      ? `Action required: ${finalFailureReason}`
+      : cleanedDetails.summary;
+
+    const { error: updateReservationError } = await supabase
+      .from('reservations')
+      .update({
+        status: dbStatus,
+        current_summary: currentSummary,
+        updated_at: new Date().toISOString(),
+        // Update old fields for backward compatibility with iOS
+        booking_confirmed: isConfirmed,
+        confirmation_details: cleanedDetails,
+        failure_reason: finalFailureReason,
+        audio_url: finalAudioUrl,
+      })
+      .eq('id', reservationId);
+
+    if (updateReservationError) {
+      console.error('[Webhook] Reservation update error:', updateReservationError);
+      return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      conversation_id: conversationId,
+      reservation_id: reservationId,
+      audio_saved: !!finalAudioUrl
+    });
 
   } catch (error) {
     console.error('[Webhook] Fatal error:', error);

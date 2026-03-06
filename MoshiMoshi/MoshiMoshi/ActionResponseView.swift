@@ -102,15 +102,32 @@ struct ActionResponseView: View {
     
     /// Sends the user response to the backend and triggers a follow-up call
     private func sendCallback() {
-        isSubmitting = true
-        
-        // Note: Future integration will involve calling APIService.shared.callback(...)
-        // passing 'item.backendId' and 'userResponse'
-        
-        // Mocking the network delay for now
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        guard let reservationId = item.backendId else {
+            print("[ActionResponse] Missing reservation ID")
             isSubmitting = false
-            dismiss()
+            return
+        }
+
+        isSubmitting = true
+
+        Task {
+            do {
+                try await APIService.shared.retryReservation(
+                    reservationId: reservationId,
+                    userResponse: userResponse
+                )
+
+                await MainActor.run {
+                    isSubmitting = false
+                    dismiss()
+                }
+            } catch {
+                print("[ActionResponse] Failed to send callback: \(error)")
+                await MainActor.run {
+                    isSubmitting = false
+                    // TODO: Show error alert to user
+                }
+            }
         }
     }
 }

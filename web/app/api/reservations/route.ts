@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
 
-    // Insert new reservation with 'pending' status
-    const { data, error } = await supabase
+    // Step 1: Insert new reservation with 'pending' status
+    const { data: reservation, error: reservationError } = await supabase
       .from('reservations')
       .insert({
         user_id: body.user_id,
@@ -48,10 +48,32 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (error) {
-      console.error('Database error:', error)
+    if (reservationError || !reservation) {
+      console.error('Database error:', reservationError)
       return NextResponse.json(
         { error: 'Failed to create reservation' },
+        { status: 500 }
+      )
+    }
+
+    // Step 2: Create conversation record (attempt_number = 1)
+    const { data: conversation, error: conversationError } = await supabase
+      .from('conversations')
+      .insert({
+        reservation_id: reservation.id,
+        attempt_number: 1,
+        status: 'pending',
+        booking_confirmed: false,
+      })
+      .select()
+      .single()
+
+    if (conversationError || !conversation) {
+      console.error('Failed to create conversation:', conversationError)
+      // Rollback: delete the reservation we just created
+      await supabase.from('reservations').delete().eq('id', reservation.id)
+      return NextResponse.json(
+        { error: 'Failed to create conversation record' },
         { status: 500 }
       )
     }
@@ -113,13 +135,13 @@ export async function POST(request: NextRequest) {
         await supabase
           .from('reservations')
           .update({ status: 'failed', failure_reason: errMessage })
-          .eq('id', data.id)
+          .eq('id', reservation.id)
         return NextResponse.json(
           {
             success: false,
             error: 'Failed to initiate outbound call',
             message: errMessage,
-            reservation: { ...data, status: 'failed', failure_reason: errMessage },
+            reservation: { ...reservation, status: 'failed', failure_reason: errMessage },
           },
           { status: 502 }
         )
@@ -141,12 +163,12 @@ export async function POST(request: NextRequest) {
             ...(conversationId && { conversation_id: conversationId }),
             ...(callSid && { call_id: callSid }),
           })
-          .eq('id', data.id)
+          .eq('id', reservation.id)
         return NextResponse.json({
           success: false,
           message: failureReason,
           reservation: {
-            ...data,
+            ...reservation,
             status: 'failed',
             failure_reason: failureReason,
             conversation_id: conversationId,
@@ -160,37 +182,56 @@ export async function POST(request: NextRequest) {
       await supabase
         .from('reservations')
         .update({ status: 'failed', failure_reason: errMessage })
-        .eq('id', data.id)
+        .eq('id', reservation.id)
       return NextResponse.json(
         {
           success: false,
           error: 'Failed to reach ElevenLabs outbound call API',
           message: errMessage,
-          reservation: { ...data, status: 'failed', failure_reason: errMessage },
+          reservation: { ...reservation, status: 'failed', failure_reason: errMessage },
         },
         { status: 502 }
       )
     }
 
     if (conversationId || callSid) {
-      const { error: updateError } = await supabase
+      // Update both reservation and conversation records
+
+      // Update reservation (status + latest_conversation_id)
+      const { error: updateReservationError } = await supabase
         .from('reservations')
         .update({
           status: callStatus,
+          latest_conversation_id: conversationId,
+          // Keep old fields for backward compatibility (to be removed later)
           ...(conversationId && { conversation_id: conversationId }),
           ...(callSid && { call_id: callSid }),
         })
-        .eq('id', data.id)
+        .eq('id', reservation.id)
 
-      if (updateError) {
-        console.error('Failed to update reservation with conversation_id/call_id:', updateError)
+      if (updateReservationError) {
+        console.error('Failed to update reservation:', updateReservationError)
+      }
+
+      // Update conversation record (conversation_id, call_id, status)
+      const { error: updateConversationError } = await supabase
+        .from('conversations')
+        .update({
+          conversation_id: conversationId,
+          call_id: callSid,
+          status: callStatus,
+        })
+        .eq('id', conversation.id)
+
+      if (updateConversationError) {
+        console.error('Failed to update conversation:', updateConversationError)
       }
     }
 
     return NextResponse.json({
       success: true,
       reservation: {
-        ...data,
+        ...reservation,
         status: callStatus,
         conversation_id: conversationId,
         call_id: callSid,
