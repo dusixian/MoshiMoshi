@@ -150,13 +150,39 @@ enum ReservationStatus: String, Codable {
     }
 }
 
+// MARK: - Conversation (from conversations table)
+struct ConversationData: Codable, Identifiable {
+    let id: String
+    let conversationId: String?
+    let status: String
+    let bookingConfirmed: Bool?
+    let failureReason: String?
+    let confirmationDetails: ReservationData.Details?
+    let audioUrl: String?
+    let callEndedAt: String?
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case conversationId = "conversation_id"
+        case status
+        case bookingConfirmed = "booking_confirmed"
+        case failureReason = "failure_reason"
+        case confirmationDetails = "confirmation_details"
+        case audioUrl = "audio_url"
+        case callEndedAt = "call_ended_at"
+        case createdAt = "created_at"
+    }
+}
+
 struct ReservationItem: Identifiable {
     let id: UUID = UUID()
     var backendId: String?
     let request: ReservationRequest
     var status: ReservationStatus
     var resultMessage: String?
-    var fullData: ReservationData?
+    var fullData: ReservationData?  // Keep for backward compatibility
+    var conversations: [ConversationData] = []  // Array of conversations
     let timestamp = Date()
 }
 

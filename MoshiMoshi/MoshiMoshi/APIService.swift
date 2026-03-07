@@ -11,8 +11,13 @@ import Supabase
 
 class APIService {
     static let shared = APIService()
-    
+
+//    #if DEBUG
+//    /// Simulator / local dev: hit Mac’s Next.js (npm run dev). Release uses Vercel.
+//    private let baseURL = "http://localhost:3000/api/reservations"
+//    #else
     private let baseURL = "https://moshi-moshi-sand.vercel.app/api/reservations"
+//    #endif
     
     let supabase = SupabaseClient(
         supabaseURL: URL(string: "https://zzxkytfwfjfbtlimqfda.supabase.co")!,
@@ -101,6 +106,37 @@ class APIService {
 
         let (_, response) = try await URLSession.shared.data(for: urlRequest)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+    }
+
+    /// Retry a reservation with user's response
+    func retryReservation(reservationId: String, userResponse: String) async throws {
+        guard let url = URL(string: "\(baseURL)/\(reservationId)/retry") else {
+            throw URLError(.badURL)
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try JSONEncoder().encode(["user_response": userResponse])
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("[Retry] Response: \(responseString)")
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+
+        if !(200...299).contains(httpResponse.statusCode) {
+            print("[Retry] Error Code: \(httpResponse.statusCode)")
+            struct ErrorResponse: Codable { let error: String? }
+            if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                throw NSError(domain: "API", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorResponse.error ?? "Unknown Error"])
+            }
             throw URLError(.badServerResponse)
         }
     }

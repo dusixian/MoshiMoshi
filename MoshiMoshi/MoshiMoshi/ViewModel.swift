@@ -212,13 +212,28 @@ class ReservationViewModel: ObservableObject {
                         case .cancelled: displayMsg = "Cancelled"
                         }
                         
-                        // Assemble the final item
+                        // NEW: Fetch all conversations for this reservation
+                        var conversations: [ConversationData] = []
+                        do {
+                            conversations = try await APIService.shared.supabase
+                                .from("conversations")
+                                .select()
+                                .eq("reservation_id", value: row.id)
+                                .order("created_at", ascending: false)
+                                .execute()
+                                .value
+                        } catch {
+                            print("⚠️ Failed to fetch conversations for reservation \(row.id): \(error.localizedDescription)")
+                        }
+
+                        // Assemble the final item with conversations array
                         let item = ReservationItem(
                             backendId: row.id,
                             request: req,
                             status: uiStatus,
                             resultMessage: displayMsg,
-                            fullData: fullData
+                            fullData: fullData,
+                            conversations: conversations
                         )
                         loadedItems.append(item)
                     }
@@ -241,7 +256,6 @@ class ReservationViewModel: ObservableObject {
         func startRealtimeListener(backendId: String, uiItemId: UUID) async {
             let channel = APIService.shared.supabase.channel("public:reservations:id=eq.\(backendId)")
                 
-            // 1. Establish a channel listening to the specific row matching the backendId
             let changes = channel.postgresChange(
                 UpdateAction.self,
                 schema: "public",
@@ -249,37 +263,74 @@ class ReservationViewModel: ObservableObject {
                 filter: .eq("id", value: backendId)
             )
                 
-            // Subscribe to the channel
             do {
                 try await channel.subscribeWithError()
                 print("🎧 RealtimeV2: Listening for status updates on reservation \(backendId)...")
             } catch {
                 print("❌ RealtimeV2 connection failed: \(error)")
-                // If the WebSocket fails to connect, update the UI to prevent infinite loading
-                await MainActor.run {
-                    self.updateTicket(id: uiItemId, status: .failed, message: "Connection error. Please refresh.")
-                }
-                return // Exit the listener
+                return
             }
                 
-            // 3. Await the server push stream
-            for await change in changes {
-                do {
-                    // Instantly decode the incoming data!
-                    let updatedRecord = try change.record.decode(as: ReservationData.self)
-                    print("⚡️ RealtimeV2 update received! Latest status: \(updatedRecord.status)")
+            for await _ in changes {
+                print("⚡️ RealtimeV2 update received! Re-fetching full history for \(backendId)...")
                 
-                    await MainActor.run {
-                        self.handleStatusUpdate(record: updatedRecord, uiItemId: uiItemId)
+                await MainActor.run {
+                    Task {
+                        await self.refreshSingleReservation(backendId: backendId, uiItemId: uiItemId)
                     }
-                        
-                    // Mission accomplished, unsubscribe to release resources
-                    await channel.unsubscribe()
-                    break
-                    
-                } catch {
-                    print("❌ RealtimeV2 data parsing failed: \(error)")
                 }
+                    
+                await channel.unsubscribe()
+                break
+            }
+        }
+
+        // Helper
+        func refreshSingleReservation(backendId: String, uiItemId: UUID) async {
+            do {
+                let row: ReservationDBRow = try await APIService.shared.supabase
+                    .from("reservations")
+                    .select()
+                    .eq("id", value: backendId)
+                    .single()
+                    .execute()
+                    .value
+                
+                let conversations: [ConversationData] = try await APIService.shared.supabase
+                    .from("conversations")
+                    .select()
+                    .eq("reservation_id", value: backendId)
+                    .order("created_at", ascending: false)
+                    .execute()
+                    .value
+                
+                await MainActor.run {
+                    if let index = self.reservations.firstIndex(where: { $0.id == uiItemId }) {
+                        let rawStatus = row.status.lowercased()
+                        var uiStatus: ReservationStatus = .pending
+                        if rawStatus == "completed" || rawStatus == "confirmed" { uiStatus = .confirmed }
+                        else if rawStatus == "action_required" { uiStatus = .actionRequired }
+                        else if rawStatus == "failed" { uiStatus = .failed }
+                        else if rawStatus == "incomplete" { uiStatus = .incomplete }
+                        
+                        let summary = row.confirmationDetails?.summary ?? ""
+                        let failureMsg = row.failureReason ?? ""
+                        var displayMsg = ""
+                        switch uiStatus {
+                        case .confirmed: displayMsg = summary.isEmpty ? "Reservation Confirmed!" : "Confirmed: \(summary)"
+                        case .actionRequired: displayMsg = failureMsg.isEmpty ? "Action needed." : "⚠️ Action Required:\n\(failureMsg)"
+                        case .failed: displayMsg = failureMsg.isEmpty ? "Rejected by restaurant." : "❌ Failed: \(failureMsg)"
+                        case .incomplete: displayMsg = "⚠️ Call disconnected."
+                        default: displayMsg = "Processing..."
+                        }
+                        
+                        self.reservations[index].status = uiStatus
+                        self.reservations[index].resultMessage = displayMsg
+                        self.reservations[index].conversations = conversations
+                    }
+                }
+            } catch {
+                print("❌ Failed to refresh single reservation: \(error)")
             }
         }
     

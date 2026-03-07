@@ -19,6 +19,9 @@ interface Reservation {
   restaurant_response?: string
   confirmed_date?: string
   confirmed_time?: string
+  failure_reason?: string | null
+  conversation_id?: string | null
+  call_id?: string | null
 }
 
 export default function TestPage() {
@@ -51,6 +54,10 @@ export default function TestPage() {
       setResult(JSON.stringify(data, null, 2))
       if (data.reservation) {
         setCurrentReservation(data.reservation)
+      }
+      // When outbound call failed (success: false or 502), show reason and failed card
+      if (data.success === false && data.message) {
+        setResult((prev) => `Call failed: ${data.message}\n\n${prev}`)
       }
     } catch (error) {
       setResult(`Error: ${error}`)
@@ -241,7 +248,7 @@ export default function TestPage() {
                 <CardTitle>Current Reservation</CardTitle>
                 <CardDescription>
                   {currentReservation 
-                    ? `ID: ${currentReservation.id.slice(0, 8)}... | Status: ${currentReservation.status}`
+                    ? `ID: ${currentReservation.id.slice(0, 8)}... | Status: ${currentReservation.status}${currentReservation.conversation_id ? ` | Conv: ${String(currentReservation.conversation_id).slice(0, 12)}...` : ''}`
                     : 'No reservation yet'}
                 </CardDescription>
               </CardHeader>
@@ -273,6 +280,18 @@ export default function TestPage() {
                   <p><strong>Date:</strong> {currentReservation.confirmed_date || currentReservation.reservation_date}</p>
                   <p><strong>Time:</strong> {currentReservation.confirmed_time || currentReservation.reservation_time}</p>
                   <p><strong>Response:</strong> {currentReservation.restaurant_response}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {currentReservation && currentReservation.status === 'failed' && (
+              <Card className="border-red-500 bg-red-50 dark:bg-red-950">
+                <CardHeader>
+                  <CardTitle className="text-red-700 dark:text-red-300">Call Failed</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-red-800 dark:text-red-200">
+                  <p><strong>Reason:</strong> {currentReservation.failure_reason ?? 'Unknown'}</p>
+                  <p><strong>Restaurant:</strong> {currentReservation.restaurant_name}</p>
                 </CardContent>
               </Card>
             )}

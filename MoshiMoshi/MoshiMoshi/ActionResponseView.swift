@@ -10,6 +10,7 @@ import SwiftUI
 struct ActionResponseView: View {
     let item: ReservationItem
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var viewModel: ReservationViewModel
     
     @State private var userResponse: String = ""
     @State private var isSubmitting: Bool = false
@@ -37,7 +38,8 @@ struct ActionResponseView: View {
                             .foregroundColor(.sushiTuna)
                         
                         // Prioritize the specific required action value, fall back to failure reason
-                        let reason = item.fullData?.confirmationDetails?.results?.requiredAction?.value
+                        let latestConversation = item.conversations.first
+                        let reason = latestConversation?.failureReason
                                      ?? item.fullData?.failureReason
                                      ?? "Additional information is required."
                         
@@ -102,15 +104,29 @@ struct ActionResponseView: View {
     
     /// Sends the user response to the backend and triggers a follow-up call
     private func sendCallback() {
-        isSubmitting = true
-        
-        // Note: Future integration will involve calling APIService.shared.callback(...)
-        // passing 'item.backendId' and 'userResponse'
-        
-        // Mocking the network delay for now
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isSubmitting = false
-            dismiss()
+            guard let reservationId = item.backendId else { return }
+            isSubmitting = true
+
+            Task {
+                do {
+                    try await APIService.shared.retryReservation(
+                        reservationId: reservationId,
+                        userResponse: userResponse
+                    )
+
+                    await MainActor.run {
+                        viewModel.updateTicket(id: item.id, status: .pending, message: "AI is calling back...")
+                        
+                        isSubmitting = false
+                        dismiss()
+                    }
+                    
+                    await viewModel.startRealtimeListener(backendId: reservationId, uiItemId: item.id)
+                    
+                } catch {
+                    print("[ActionResponse] Failed to send callback: \(error)")
+                    await MainActor.run { isSubmitting = false }
+                }
+            }
         }
-    }
 }
