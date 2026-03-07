@@ -11,6 +11,7 @@ struct ProfileView: View {
     var onSave: (() -> Void)?
 
     @StateObject private var profileService = ProfileService()
+    @ObservedObject private var lm = LocalizationManager.shared
 
     @State private var fullName: String = ""
     @State private var email: String = ""
@@ -37,14 +38,14 @@ struct ProfileView: View {
 
             VStack(spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("DEFAULT CONTACT INFO")
+                    Text(L("DEFAULT CONTACT INFO"))
                         .font(.caption)
                         .fontWeight(.bold)
                         .foregroundColor(.gray)
                         .padding(.top, 20)
 
-                    OmakaseTextField(icon: "person.fill", placeholder: "Your Default Name", text: $fullName)
-                    OmakaseTextField(icon: "envelope.fill", placeholder: "Your Email", text: $email)
+                    OmakaseTextField(icon: "person.fill", placeholder: L("Your Default Name"), text: $fullName)
+                    OmakaseTextField(icon: "envelope.fill", placeholder: L("Your Email"), text: $email)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
 
@@ -57,13 +58,14 @@ struct ProfileView: View {
                             .keyboardType(.phonePad)
                             .foregroundColor(.sushiNori)
                             .frame(width: 56)
-                        TextField("Phone number", text: $phoneNational)
+                        TextField(L("Phone number"), text: $phoneNational)
                             .keyboardType(.phonePad)
                             .foregroundColor(.sushiNori)
                     }
                     .padding()
-                    .background(Color.white)
+                    .background(Color.cardBackground)
                     .cornerRadius(12)
+
                 }
                 .padding(.horizontal)
 
@@ -80,7 +82,7 @@ struct ProfileView: View {
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         } else {
                             Image(systemName: "checkmark.circle.fill")
-                            Text("Save")
+                            Text(L("Save"))
                         }
                     }
                     .font(.headline)
@@ -93,7 +95,7 @@ struct ProfileView: View {
                 .disabled(isSaving || !hasUnsavedChanges)
                 .padding(.horizontal)
 
-                Text("This information will be automatically filled in when you make a new reservation request.")
+                Text(L("This information will be automatically filled in when you make a new reservation request."))
                     .font(.caption)
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
@@ -102,7 +104,7 @@ struct ProfileView: View {
                 Spacer()
             }
         }
-        .navigationTitle("Personal Information")
+        .navigationTitle(L("Personal Information"))
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadProfile() }
     }

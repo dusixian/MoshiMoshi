@@ -11,6 +11,7 @@ import SwiftUI
 struct ReservationTicketView: View {
     let item: ReservationItem
     @ObservedObject var viewModel: ReservationViewModel
+    @ObservedObject private var lm = LocalizationManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -25,12 +26,12 @@ struct ReservationTicketView: View {
                             .font(.headline)
                             .foregroundColor(.gray)
                     )
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.request.restaurantName)
                         .font(.system(size: 22, weight: .bold, design: .serif))
                         .foregroundColor(.primary)
-                    
+
                     // Status Badge
                     Text(item.status.rawValue)
                         .font(.system(size: 14, weight: .bold))
@@ -40,40 +41,47 @@ struct ReservationTicketView: View {
                         .foregroundColor(item.status.color)
                         .clipShape(Capsule())
                 }
-                
+
                 Spacer()
             }
-            
+
             // 2. Info Grid: Date, Time, Party, etc.
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
                     InfoRow(icon: "calendar", text: formatDate(item.request.dateTime))
                     Spacer()
-                    // temp price range
-                    InfoRow(icon: "dollarsign.circle", text: "Price TBD")
+                    InfoRow(icon: "dollarsign.circle", text: L("Price TBD"))
                         .frame(width: 140, alignment: .leading)
                 }
-                
+
                 HStack(alignment: .top) {
                     InfoRow(icon: "clock", text: reservationTimeDisplay(item.request.reservationTime))
                     Spacer()
-                    // Temp location
-                    InfoRow(icon: "mappin.and.ellipse", text: "Japan")
-                        .frame(width: 140, alignment: .leading)
+                    let addr = item.request.restaurantAddress
+                    HStack(spacing: 10) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.system(size: 18))
+                            .frame(width: 24)
+                        Text(addr.isEmpty ? "Japan" : addr)
+                            .font(.system(size: 16))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    .frame(width: 140, alignment: .leading)
                 }
-                
-                InfoRow(icon: "person.2", text: "\(item.request.partySize) People")
+
+                InfoRow(icon: "person.2", text: String(format: L("%d People"), item.request.partySize))
             }
             .foregroundColor(.secondary)
 
             // 3. View Details — one tap to see full details (and Respond to Request if action required)
             NavigationLink(destination: ReservationDetailView(item: item, viewModel: viewModel)) {
-                Text("View Details")
+                Text(L("View Details"))
                     .font(.system(size: 18, weight: .medium))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(item.status == .actionRequired ? Color.sushiTuna : Color.clear)
-                    .foregroundColor(item.status == .actionRequired ? .white : .black)
+                    .foregroundColor(item.status == .actionRequired ? .white : .primary)
                     .cornerRadius(25)
                     .overlay(
                         RoundedRectangle(cornerRadius: 25)
@@ -83,13 +91,13 @@ struct ReservationTicketView: View {
             .padding(.top, 5)
         }
         .padding(24)
-        .background(Color.white)
+        .background(Color.cardBackground)
         .cornerRadius(24)
         .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
     }
-    
+
     // MARK: - Helper Views & Formatters
-    
+
     private func InfoRow(icon: String, text: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
@@ -99,13 +107,13 @@ struct ReservationTicketView: View {
                 .font(.system(size: 16))
         }
     }
-    
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM dd, yyyy"
         return formatter.string(from: date)
     }
-    
+
     private func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"

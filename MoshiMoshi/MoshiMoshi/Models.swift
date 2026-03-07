@@ -23,6 +23,8 @@ struct ReservationRequest: Codable {
 
     var partySize: Int = 2
     var specialRequests: String = ""
+    var restaurantAddress: String = ""
+    var restaurantMapsUrl: String = ""
 
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
@@ -35,9 +37,12 @@ struct ReservationRequest: Codable {
         case reservationTime = "reservation_time"
         case partySize = "party_size"
         case specialRequests = "special_requests"
+        case restaurantAddress = "restaurant_address"
+        case restaurantMapsUrl = "restaurant_maps_url"
     }
 }
 
+// placeholder to avoid ambiguity
 struct ReservationData: Codable, Identifiable {
     let id: String
     let status: String
@@ -125,7 +130,9 @@ enum ReservationStatus: String, Codable {
         case .pending: return .gray
         case .confirmed: return .sushiWasabi
         case .actionRequired: return .sushiTuna
-        case .failed: return .black
+        case .failed: return Color(UIColor { t in
+            t.userInterfaceStyle == .dark ? UIColor(white: 0.75, alpha: 1) : UIColor.black
+        })
         case .incomplete: return .yellow
         case .cancelled: return .gray
         }
@@ -169,6 +176,7 @@ struct Restaurant: Codable, Identifiable {
     let reservationDifficulty: String?
     let notes: String?
     let imageUrl: String?
+    let mapsUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -185,6 +193,7 @@ struct Restaurant: Codable, Identifiable {
         case reservationDifficulty = "reservation_difficulty"
         case notes
         case imageUrl = "image_url"
+        case mapsUrl = "maps_url"
     }
 }
 
@@ -195,6 +204,7 @@ struct UserProfile: Codable, Equatable {
     var email: String?
     var phone: String?
     var updatedAt: Date?
+    var defaultRegion: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -202,6 +212,7 @@ struct UserProfile: Codable, Equatable {
         case email = "email"
         case phone = "phone"
         case updatedAt = "updated_at"
+        case defaultRegion = "default_region"
     }
 }
 
@@ -224,6 +235,8 @@ struct ReservationDBRow: Codable {
     let createdAt: String?
     let updatedAt: String?
     let audioUrl: String?
+    let restaurantAddress: String?
+    let restaurantMapsUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -242,5 +255,7 @@ struct ReservationDBRow: Codable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case audioUrl = "audio_url"
+        case restaurantAddress = "restaurant_address"
+        case restaurantMapsUrl = "restaurant_maps_url"
     }
 }

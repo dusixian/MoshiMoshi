@@ -9,6 +9,7 @@ import SwiftUI
 
 struct HistoryView: View {
     @ObservedObject var viewModel: ReservationViewModel
+    @ObservedObject private var lm = LocalizationManager.shared
 
     @State private var showPastEvents = false
     @State private var statusFilter: ReservationStatus? = nil
@@ -36,19 +37,19 @@ struct HistoryView: View {
                         // Filters
                         VStack(alignment: .leading, spacing: 12) {
                             Toggle(isOn: $showPastEvents) {
-                                Text("Show past events")
+                                Text(L("Show past events"))
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(.sushiNori)
                             }
                             .tint(.sushiSalmon)
 
-                            Text("Status")
+                            Text(L("Status"))
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.secondary)
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
                                     StatusFilterChip(
-                                        title: "All",
+                                        title: L("All"),
                                         isSelected: statusFilter == nil
                                     ) { statusFilter = nil }
                                     ForEach([ReservationStatus.confirmed, .actionRequired, .failed, .incomplete, .pending, .cancelled], id: \.self) { status in
@@ -71,8 +72,8 @@ struct HistoryView: View {
                                     .font(.system(size: 60))
                                     .foregroundColor(.gray.opacity(0.4))
                                 Text(showPastEvents && statusFilter == nil && viewModel.reservations.isEmpty
-                                     ? "No reservation history"
-                                     : "No reservations match the current filters")
+                                     ? L("No reservation history")
+                                     : L("No reservations match the current filters"))
                                     .font(.system(size: 18))
                                     .foregroundColor(.gray)
                                     .multilineTextAlignment(.center)
@@ -90,7 +91,7 @@ struct HistoryView: View {
                     .padding(.vertical)
                 }
             }
-            .navigationTitle("History")
+            .navigationTitle(L("History"))
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 viewModel.fetchUserHistory()
@@ -112,7 +113,7 @@ private struct StatusFilterChip: View {
                 .foregroundColor(isSelected ? .white : .sushiNori)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color.sushiSalmon : Color.white)
+                .background(isSelected ? Color.sushiSalmon : Color.cardBackground)
                 .cornerRadius(20)
         }
         .buttonStyle(.plain)

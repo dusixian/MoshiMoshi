@@ -13,7 +13,9 @@ struct ReservationDetailView: View {
     let item: ReservationItem
     @ObservedObject var viewModel: ReservationViewModel
     @State private var showResponseSheet = false
+    @State private var showMapConfirm = false
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     private var isActionRequired: Bool { item.status == .actionRequired }
     private var canModifyOrCancel: Bool {
@@ -114,7 +116,7 @@ struct ReservationDetailView: View {
             HStack(alignment: .top) {
                 InfoBlock(icon: "clock", title: "TIME", value: reservationTimeDisplay(item.request.reservationTime))
                 Spacer()
-                InfoBlock(icon: "mappin.and.ellipse", title: "LOCATION", value: "Japan")
+                locationBlock
             }
             
             HStack(alignment: .top) {
@@ -146,7 +148,7 @@ struct ReservationDetailView: View {
                             .padding(.vertical, 12)
                             .overlay(RoundedRectangle(cornerRadius: 25).stroke(Color.gray.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [5])))
                     }
-                    .foregroundColor(.black)
+                    .foregroundColor(.primary)
 
                     Button(action: {
                         viewModel.cancelReservation(uiItemId: item.id)
@@ -162,11 +164,67 @@ struct ReservationDetailView: View {
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.cardBackground)
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.05), radius: 10, y: 4)
     }
     
+    // MARK: - Location block (tappable → Google Maps)
+    private var locationBlock: some View {
+        let address = item.request.restaurantAddress
+        let displayText = address.isEmpty ? "Japan" : address
+
+        return Button(action: { if !address.isEmpty { showMapConfirm = true } }) {
+            HStack(alignment: .top, spacing: 12) {
+                Circle()
+                    .fill(Color.sushiSalmon.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                    .overlay(Image(systemName: "mappin.and.ellipse").foregroundColor(.sushiSalmon))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("LOCATION")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    Text(displayText)
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundColor(address.isEmpty ? .primary : .sushiSalmon)
+                    if !address.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "map.fill")
+                                .font(.caption2)
+                            Text("Open in Maps")
+                                .font(.caption2)
+                        }
+                        .foregroundColor(.sushiSalmon.opacity(0.7))
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .confirmationDialog("Open in Google Maps?", isPresented: $showMapConfirm) {
+            Button("Open Google Maps") { openLocationInMaps() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text(address)
+        }
+    }
+
+    private func openLocationInMaps() {
+        let mapsUrl = item.request.restaurantMapsUrl
+        if !mapsUrl.isEmpty, let url = URL(string: mapsUrl) {
+            openURL(url)
+            return
+        }
+        let address = item.request.restaurantAddress
+        let name = item.request.restaurantName
+        let q = "\(name) \(address)".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name
+        if let url = URL(string: "https://www.google.com/maps/search/?api=1&query=\(q)") {
+            openURL(url)
+        }
+    }
+
     // MARK: - UI Helpers
     private func InfoBlock(icon: String, title: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
@@ -246,7 +304,7 @@ struct CallHistoryExpandableCard: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(formatTime(item.fullData?.updatedAt ?? ""))
                             .font(.subheadline.bold())
-                            .foregroundColor(.black)
+                            .foregroundColor(.primary)
                         
                         let summary = item.fullData?.confirmationDetails?.summary ?? "Call finished. Review details below."
                         Text(summary)
@@ -268,7 +326,7 @@ struct CallHistoryExpandableCard: View {
                         .foregroundColor(.gray)
                 }
                 .padding(16)
-                .background(Color.white)
+                .background(Color.cardBackground)
             }
             .buttonStyle(PlainButtonStyle())
             
@@ -377,7 +435,7 @@ struct CallHistoryExpandableCard: View {
                     )
                 }
                 .padding(16)
-                .background(Color.white)
+                .background(Color.cardBackground)
             }
         }
         .cornerRadius(20)

@@ -79,6 +79,20 @@ class ReservationViewModel: ObservableObject {
                 // Use the real backend ID returned from the server
                 let realBackendId = response.reservation.id
 
+                // Patch address fields directly to Supabase (backend doesn't forward these)
+                let addr = self.request.restaurantAddress
+                let mapsUrl = self.request.restaurantMapsUrl
+                if !addr.isEmpty || !mapsUrl.isEmpty {
+                    try? await APIService.shared.supabase
+                        .from("reservations")
+                        .update([
+                            "restaurant_address": addr,
+                            "restaurant_maps_url": mapsUrl
+                        ])
+                        .eq("id", value: realBackendId)
+                        .execute()
+                }
+
                 await MainActor.run {
                     // Update UI item
                     if let index = self.reservations.firstIndex(where: { $0.id == newUIItem.id }) {
@@ -134,6 +148,8 @@ class ReservationViewModel: ObservableObject {
                         req.specialRequests = row.specialRequests ?? ""
                         req.reservationDate = row.reservationDate ?? ""
                         req.reservationTime = row.reservationTime ?? ""
+                        req.restaurantAddress = row.restaurantAddress ?? ""
+                        req.restaurantMapsUrl = row.restaurantMapsUrl ?? ""
                         
                         // Reconstruct DateTime in Japan time (JST) for UI and upcoming filter.
                         // DB returns DATE as "yyyy-MM-dd", TIME as "HH:mm:ss" or "HH:mm" (PostgreSQL/Supabase).

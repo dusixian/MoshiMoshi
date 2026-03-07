@@ -11,6 +11,7 @@ import Supabase
 struct HomeView: View {
     @ObservedObject var viewModel: ReservationViewModel
     @Binding var selectedTab: Int
+    @ObservedObject private var lm = LocalizationManager.shared
     @State private var suggestedRestaurants: [Restaurant] = []
 
     var body: some View {
@@ -23,7 +24,7 @@ struct HomeView: View {
 
                         // --- Welcome Section ---
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Ready for your next reservation?")
+                            Text(L("Ready for your next reservation?"))
                                 .font(.system(size: 18))
                                 .foregroundColor(.gray)
                         }
@@ -34,11 +35,11 @@ struct HomeView: View {
                             selectedTab = 1  // Switch to Discover tab
                         }) {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("Start a New Reservation")
+                                Text(L("Start a New Reservation"))
                                     .font(.system(size: 28, weight: .semibold))
                                     .foregroundColor(.white)
 
-                                Text("Note: Restaurant availability varies. Agent will call to confirm.")
+                                Text(L("Note: Restaurant availability varies. Agent will call to confirm."))
                                     .font(.system(size: 12))
                                     .foregroundColor(.white.opacity(0.9))
                                     .lineLimit(1)
@@ -46,7 +47,7 @@ struct HomeView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
 
                                 HStack {
-                                    Text("Book Now")
+                                    Text(L("Book Now"))
                                         .font(.system(size: 14))
                                         .fontWeight(.semibold)
                                     Image(systemName: "arrow.right")
@@ -54,7 +55,7 @@ struct HomeView: View {
                                 }
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 8)
-                                .background(Color.white.opacity(0.3))
+                                .background(Color.cardBackground.opacity(0.3))
                                 .cornerRadius(16)
                                 .foregroundColor(.white)
                             }
@@ -80,7 +81,7 @@ struct HomeView: View {
                                 HStack(spacing: 8) {
                                     Image(systemName: "exclamationmark.circle")
                                         .font(.system(size: 22, weight: .bold))
-                                    Text("ACTION REQUIRED")
+                                    Text(L("ACTION REQUIRED"))
                                         .font(.system(size: 24, weight: .bold, design: .serif))
                                 }
                                 .foregroundColor(.sushiTuna)
@@ -107,7 +108,7 @@ struct HomeView: View {
 
                         // --- Upcoming Events Section ---
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Upcoming Events")
+                            Text(L("Upcoming Events"))
                                 .font(.system(size: 24, weight: .semibold, design: .serif))
                                 .foregroundColor(.sushiNori)
                                 .padding(.horizontal)
@@ -119,13 +120,13 @@ struct HomeView: View {
                                     .font(.system(size: 48))
                                     .foregroundColor(.gray.opacity(0.4))
 
-                                    Text("No upcoming reservations")
+                                    Text(L("No upcoming reservations"))
                                         .font(.system(size: 16))
                                         .foregroundColor(.gray)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 40)
-                                .background(Color.white)
+                                .background(Color.cardBackground)
                                 .cornerRadius(16)
                                 .padding(.horizontal)
                             } else {
@@ -139,7 +140,7 @@ struct HomeView: View {
 
                         // --- Suggested Dining Section ---
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Suggested Dining")
+                            Text(L("Suggested Dining"))
                                 .font(.system(size: 24, weight: .semibold))
                                 .foregroundColor(.sushiNori)
                                 .padding(.horizontal)
@@ -239,7 +240,7 @@ struct UpcomingEventCard: View {
             Spacer()
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color.cardBackground)
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
@@ -274,6 +275,7 @@ struct UpcomingEventCard: View {
 struct ActionAlertCard: View {
     let item: ReservationItem
     @ObservedObject var viewModel: ReservationViewModel
+    @ObservedObject private var lm = LocalizationManager.shared
     @State private var showDetailSheet = false
     @State private var showCancelConfirm = false
 
@@ -299,7 +301,7 @@ struct ActionAlertCard: View {
                     .clipShape(Capsule())
             }
 
-            Text(item.fullData?.failureReason ?? item.resultMessage ?? "Issue detected. Please review.")
+            Text(item.fullData?.failureReason ?? item.resultMessage ?? L("Issue detected. Please review."))
                 .font(.system(size: 14))
                 .foregroundColor(.gray)
                 .lineLimit(2)
@@ -308,7 +310,7 @@ struct ActionAlertCard: View {
             HStack(spacing: 10) {
                 Button(action: { showDetailSheet = true }) {
                     HStack(spacing: 6) {
-                        Text(isActionRequired ? "Resolve Issue" : "View Options")
+                        Text(isActionRequired ? L("Resolve Issue") : L("View Options"))
                         Image(systemName: "arrow.right")
                             .font(.system(size: 12))
                     }
@@ -321,7 +323,7 @@ struct ActionAlertCard: View {
                 }
                 if isActionRequired {
                     Button(action: { showCancelConfirm = true }) {
-                        Text("Cancel")
+                        Text(L("Cancel"))
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.sushiTuna)
                             .padding(.horizontal, 16)
@@ -331,13 +333,13 @@ struct ActionAlertCard: View {
                 }
             }
         }
-        .alert("Cancel reservation?", isPresented: $showCancelConfirm) {
-            Button("Keep", role: .cancel) { }
-            Button("Cancel reservation", role: .destructive) {
+        .alert(L("Cancel reservation?"), isPresented: $showCancelConfirm) {
+            Button(L("Keep"), role: .cancel) { }
+            Button(L("Cancel reservation"), role: .destructive) {
                 viewModel.cancelReservation(uiItemId: item.id)
             }
         } message: {
-            Text("This will mark the reservation as cancelled. You can still see it in History.")
+            Text(L("This will mark the reservation as cancelled. You can still see it in History."))
         }
         .padding(16)
         .background(item.status.color.opacity(0.05))
@@ -351,7 +353,7 @@ struct ActionAlertCard: View {
                 ReservationDetailView(item: item, viewModel: viewModel)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") { showDetailSheet = false }
+                            Button(L("Done")) { showDetailSheet = false }
                         }
                     }
             }
@@ -364,6 +366,9 @@ struct ActionAlertCard: View {
 struct SuggestedDiningCard: View {
     let restaurant: Restaurant
     @ObservedObject var viewModel: ReservationViewModel
+    @ObservedObject private var lm = LocalizationManager.shared
+    @Environment(\.openURL) var openURL
+    @State private var showMapConfirm = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -391,7 +396,7 @@ struct SuggestedDiningCard: View {
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.white.opacity(0.95))
+                        .background(Color.cardBackground.opacity(0.95))
                         .cornerRadius(12)
                         .padding(8)
                     }
@@ -410,17 +415,35 @@ struct SuggestedDiningCard: View {
                     .foregroundColor(.gray)
                     .lineLimit(1)
 
-                HStack(spacing: 4) {
-                    Image(systemName: "mappin.circle.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.sushiSalmon)
-                    Text(restaurant.city ?? "")
-                        .font(.system(size: 12))
-                        .foregroundColor(.gray)
+                Button(action: { showMapConfirm = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.sushiSalmon)
+                        Text(restaurant.city ?? "")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                    }
+                }
+                .confirmationDialog(L("Open Google Maps"), isPresented: $showMapConfirm) {
+                    Button(L("Open Google Maps")) {
+                        if let mapsUrl = restaurant.mapsUrl, let url = URL(string: mapsUrl) {
+                            openURL(url)
+                        } else {
+                            let query = "\(restaurant.name) \(restaurant.address ?? "")"
+                                .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? restaurant.name
+                            if let url = URL(string: "https://www.google.com/maps/search/?api=1&query=\(query)") {
+                                openURL(url)
+                            }
+                        }
+                    }
+                    Button(L("Cancel"), role: .cancel) { }
+                } message: {
+                    Text(restaurant.address ?? restaurant.name)
                 }
 
                 NavigationLink(destination: ReservationFormView(viewModel: viewModel, restaurant: restaurant)) {
-                    Text("Book Table")
+                    Text(L("Book Table"))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -432,7 +455,7 @@ struct SuggestedDiningCard: View {
             }
             .padding(12)
         }
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
     }

@@ -33,7 +33,17 @@ final class ProfileService: ObservableObject {
         }
     }
 
-    func upsertProfile(fullName: String?, email: String?, phone: String?) async throws {
+    func updateDefaultRegion(_ region: String) async throws {
+        guard let uid = await currentUserId() else { return }
+        let now = ISO8601DateFormatter().string(from: Date())
+        try await supabase
+            .from("profiles")
+            .update(["default_region": region, "updated_at": now])
+            .eq("id", value: uid)
+            .execute()
+    }
+
+    func upsertProfile(fullName: String?, email: String?, phone: String?, defaultRegion: String? = nil) async throws {
         guard let uid = await currentUserId() else { return }
         struct Row: Encodable {
             let id: UUID
@@ -41,6 +51,7 @@ final class ProfileService: ObservableObject {
             let email: String?
             let phone: String?
             let updated_at: String
+            let default_region: String?
         }
         let now = ISO8601DateFormatter().string(from: Date())
         let row = Row(
@@ -48,7 +59,8 @@ final class ProfileService: ObservableObject {
             full_name: fullName?.isEmpty == true ? nil : fullName,
             email: email?.isEmpty == true ? nil : email,
             phone: phone?.isEmpty == true ? nil : phone,
-            updated_at: now
+            updated_at: now,
+            default_region: defaultRegion?.isEmpty == true ? nil : defaultRegion
         )
         try await supabase
             .from("profiles")

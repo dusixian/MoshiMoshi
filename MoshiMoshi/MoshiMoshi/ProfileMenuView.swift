@@ -10,9 +10,19 @@ import SwiftUI
 struct ProfileMenuView: View {
     @EnvironmentObject var auth: AuthManager
     @StateObject private var profileService = ProfileService()
+    @ObservedObject private var lm = LocalizationManager.shared
     @State private var displayName: String = ""
     @State private var displayEmail: String = ""
     @State private var displayPhone: String = ""
+    @State private var displayRegion: String = "Tokyo"
+
+    private var languageLabel: String {
+        switch lm.language {
+        case "ja": return "日本語"
+        case "zh-Hans": return "中文"
+        default: return "English"
+        }
+    }
 
     var body: some View {
         NavigationView {
@@ -36,10 +46,10 @@ struct ProfileMenuView: View {
 
                             // User Info (from DB)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(displayName.isEmpty ? "User Name" : displayName)
+                                Text(displayName.isEmpty ? L("User Name") : displayName)
                                     .font(.system(size: 24, weight: .bold))
                                     .foregroundColor(.sushiNori)
-                                
+
                                 if !displayEmail.isEmpty {
                                     Text(displayEmail)
                                     .font(.system(size: 14))
@@ -53,7 +63,7 @@ struct ProfileMenuView: View {
                                         .foregroundColor(.gray)
                                 }
                             }
-                            
+
                             Spacer()
                         }
                         .padding(.horizontal, 20)
@@ -62,7 +72,7 @@ struct ProfileMenuView: View {
 
                         // --- Account Section ---
                         VStack(alignment: .leading, spacing: 0) {
-                            Text("Account")
+                            Text(L("Account"))
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(.gray)
                                 .padding(.horizontal)
@@ -70,62 +80,70 @@ struct ProfileMenuView: View {
 
                             VStack(spacing: 0) {
                                 NavigationLink(destination: ProfileView(onSave: { Task { await loadProfileFromDB() } })) {
-                                    MenuRowContent(icon: "person.circle", title: "Personal Information")
+                                    MenuRowContent(icon: "person.circle", title: L("Personal Information"))
                                 }
 
                                 Divider().padding(.leading, 60)
 
-                                MenuRow(icon: "creditcard", title: "Payment Methods", subtitle: "Visa .... 4242", action: {})
+                                MenuRow(icon: "creditcard", title: L("Payment Methods"), subtitle: "Visa .... 4242", action: {})
 
                                 Divider().padding(.leading, 60)
 
-                                MenuRow(icon: "bell", title: "Notifications", subtitle: "Enabled", action: {})
+                                MenuRow(icon: "bell", title: L("Notifications"), subtitle: L("Enabled"), action: {})
                             }
-                            .background(Color.white)
+                            .background(Color.cardBackground)
                             .cornerRadius(12)
                             .padding(.horizontal)
                         }
 
                         // --- Preferences Section ---
                         VStack(alignment: .leading, spacing: 0) {
-                            Text("Preferences")
+                            Text(L("Preferences"))
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(.gray)
                                 .padding(.horizontal)
                                 .padding(.bottom, 8)
 
                             VStack(spacing: 0) {
-                                MenuRow(icon: "globe", title: "Language", subtitle: "English", action: {})
+                                NavigationLink(destination: LanguagePickerView()) {
+                                    MenuRowContent(icon: "globe", title: L("Language"), subtitle: languageLabel)
+                                }
 
                                 Divider().padding(.leading, 60)
 
-                                MenuRow(icon: "mappin.circle", title: "Default Region", subtitle: "Tokyo, Japan", action: {})
+                                NavigationLink(destination: RegionPickerView(onSaved: { region in
+                                    displayRegion = region
+                                })) {
+                                    MenuRowContent(icon: "mappin.circle", title: L("Default Region"), subtitle: displayRegion)
+                                }
 
                                 Divider().padding(.leading, 60)
 
-                                MenuRow(icon: "lock.shield", title: "Privacy & Security", action: {})
+                                MenuRow(icon: "lock.shield", title: L("Privacy & Security"), action: {})
                             }
-                            .background(Color.white)
+                            .background(Color.cardBackground)
                             .cornerRadius(12)
                             .padding(.horizontal)
                         }
 
                         // --- Support Section ---
                         VStack(alignment: .leading, spacing: 0) {
-                            Text("Support")
+                            Text(L("Support"))
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(.gray)
                                 .padding(.horizontal)
                                 .padding(.bottom, 8)
 
                             VStack(spacing: 0) {
-                                MenuRow(icon: "questionmark.circle", title: "Help Center", action: {})
+                                MenuRow(icon: "questionmark.circle", title: L("Help Center"), action: {})
 
                                 Divider().padding(.leading, 60)
 
-                                MenuRow(icon: "gearshape", title: "App Settings", action: {})
+                                NavigationLink(destination: AppSettingsView()) {
+                                    MenuRowContent(icon: "gearshape", title: L("App Settings"))
+                                }
                             }
-                            .background(Color.white)
+                            .background(Color.cardBackground)
                             .cornerRadius(12)
                             .padding(.horizontal)
                         }
@@ -137,7 +155,7 @@ struct ProfileMenuView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.right.square")
                                     .font(.system(size: 16))
-                                Text("Sign Out")
+                                Text(L("Sign Out"))
                                     .font(.system(size: 16, weight: .semibold))
                             }
                             .foregroundColor(.red)
@@ -150,7 +168,7 @@ struct ProfileMenuView: View {
                     }
                 }
             }
-            .navigationTitle("Profile")
+            .navigationTitle(L("Profile"))
             .navigationBarTitleDisplayMode(.large)
         }
         .accentColor(.sushiSalmon)
@@ -164,6 +182,7 @@ struct ProfileMenuView: View {
                     displayName = profile.fullName ?? ""
                     displayEmail = profile.email ?? ""
                     displayPhone = profile.phone ?? ""
+                    displayRegion = profile.defaultRegion ?? "Tokyo"
                 }
             } else {
                 await MainActor.run {
@@ -201,7 +220,7 @@ struct MenuRowContent: View {
     let icon: String
     let title: String
     var subtitle: String? = nil
-    
+
     var body: some View {
         HStack(spacing: 16) {
             // Icon
@@ -250,6 +269,116 @@ struct MenuRow: View {
         Button(action: action) {
             MenuRowContent(icon: icon, title: title, subtitle: subtitle)
         }
+    }
+}
+
+// MARK: - App Settings View
+struct AppSettingsView: View {
+    @AppStorage("appColorScheme") private var appColorScheme: String = "system"
+    @ObservedObject private var lm = LocalizationManager.shared
+
+    private var options: [(label: String, icon: String, value: String)] {[
+        (L("System Default"), "circle.lefthalf.filled", "system"),
+        (L("Light Mode"),     "sun.max.fill",            "light"),
+        (L("Dark Mode"),      "moon.fill",               "dark"),
+    ]}
+
+    var body: some View {
+        ZStack {
+            Color.sushiRice.ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(spacing: 0) {
+                    ForEach(options, id: \.value) { option in
+                        Button(action: { appColorScheme = option.value }) {
+                            HStack(spacing: 16) {
+                                Image(systemName: option.icon)
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.sushiSalmon)
+                                    .frame(width: 28)
+                                Text(option.label)
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                if appColorScheme == option.value {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.sushiSalmon)
+                                        .font(.system(size: 14, weight: .semibold))
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 14)
+                        }
+                        if option.value != "dark" {
+                            Divider().padding(.leading, 64)
+                        }
+                    }
+                }
+                .background(Color.cardBackground)
+                .cornerRadius(12)
+                .padding(.horizontal)
+                .padding(.top, 16)
+
+                Spacer()
+            }
+        }
+        .navigationTitle(L("App Settings"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Language Picker View
+struct LanguagePickerView: View {
+    @ObservedObject private var lm = LocalizationManager.shared
+
+    private let options: [(label: String, native: String, value: String)] = [
+        ("English",  "English", "en"),
+        ("Japanese", "日本語",   "ja"),
+        ("Chinese",  "中文简体", "zh-Hans"),
+    ]
+
+    var body: some View {
+        ZStack {
+            Color.sushiRice.ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(spacing: 0) {
+                    ForEach(options, id: \.value) { option in
+                        Button(action: { lm.language = option.value }) {
+                            HStack(spacing: 16) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(option.native)
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.primary)
+                                    Text(option.label)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                if lm.language == option.value {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.sushiSalmon)
+                                        .font(.system(size: 14, weight: .semibold))
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 14)
+                        }
+                        if option.value != "zh-Hans" {
+                            Divider().padding(.leading, 20)
+                        }
+                    }
+                }
+                .background(Color.cardBackground)
+                .cornerRadius(12)
+                .padding(.horizontal)
+                .padding(.top, 16)
+
+                Spacer()
+            }
+        }
+        .navigationTitle(L("Language"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

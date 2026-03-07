@@ -10,13 +10,18 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject var viewModel = ReservationViewModel()
+    @ObservedObject private var lm = LocalizationManager.shared
     @State private var selectedTab = 0
 
     init() {
         // Customize TabBar appearance
         let appearance = UITabBarAppearance()
-        appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(white: 0.98, alpha: 1.0) // Light background
+        appearance.configureWithDefaultBackground()
+        appearance.backgroundColor = UIColor(dynamicProvider: { t in
+            t.userInterfaceStyle == .dark
+                ? UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1)
+                : UIColor(white: 0.98, alpha: 1.0)
+        })
 
         // Add subtle shadow for separation
         appearance.shadowColor = UIColor.black.withAlphaComponent(0.1)
@@ -56,28 +61,28 @@ struct ContentView: View {
             HomeView(viewModel: viewModel, selectedTab: $selectedTab)
                 .tabItem {
                     Image(systemName: "house.fill")
-                    Text("Home")
+                    Text(L("Home"))
                 }
                 .tag(0)
 
             DiscoverView(viewModel: viewModel)
                 .tabItem {
                     Image(systemName: "safari.fill")
-                    Text("Discover")
+                    Text(L("Discover"))
                 }
                 .tag(1)
 
             HistoryView(viewModel: viewModel)
                 .tabItem {
                     Image(systemName: "clock.fill")
-                    Text("History")
+                    Text(L("History"))
                 }
                 .tag(2)
 
             ProfileMenuView()
                 .tabItem {
                     Image(systemName: "person.fill")
-                    Text("Profile")
+                    Text(L("Profile"))
                 }
                 .tag(3)
         }

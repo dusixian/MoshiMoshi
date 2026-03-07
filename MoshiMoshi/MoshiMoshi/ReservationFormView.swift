@@ -12,6 +12,7 @@ struct ReservationFormView: View {
     @ObservedObject var viewModel: ReservationViewModel
     var restaurant: Restaurant? = nil
     @StateObject private var profileService = ProfileService()
+    @ObservedObject private var lm = LocalizationManager.shared
     @Environment(\.dismiss) var dismiss
 
     @State private var phoneCountryCode: String = "+1"
@@ -28,36 +29,36 @@ struct ReservationFormView: View {
                     VStack(alignment: .leading, spacing: 24) {
                         // Section 1: Restaurant
                         VStack(alignment: .leading) {
-                            Text("RESTAURANT INFO").modifier(OmakaseHeader())
-                            OmakaseTextField(icon: "fork.knife", placeholder: "Restaurant Name", text: $viewModel.request.restaurantName)
-                            OmakaseTextField(icon: "phone", placeholder: "Restaurant Phone", text: $viewModel.request.restaurantPhone)
+                            Text(L("RESTAURANT INFO")).modifier(OmakaseHeader())
+                            OmakaseTextField(icon: "fork.knife", placeholder: L("Restaurant Name"), text: $viewModel.request.restaurantName)
+                            OmakaseTextField(icon: "phone", placeholder: L("Restaurant Phone"), text: $viewModel.request.restaurantPhone)
                                 .keyboardType(.phonePad)
                         }
 
                         // Section 2: Details
                         VStack(alignment: .leading) {
-                            Text("RESERVATION DETAILS").modifier(OmakaseHeader())
+                            Text(L("RESERVATION DETAILS")).modifier(OmakaseHeader())
                             HStack {
                                 Image(systemName: "calendar").foregroundColor(.sushiNori)
                                 DatePicker("", selection: $viewModel.request.dateTime, displayedComponents: [.date, .hourAndMinute]).labelsHidden()
                             }
-                            .padding().background(Color.white).cornerRadius(12)
+                            .padding().background(Color.cardBackground).cornerRadius(12)
 
                             HStack {
                                 Image(systemName: "person.2").foregroundColor(.sushiNori)
-                                Text("Party Size").foregroundColor(.sushiNori)
+                                Text(L("Party Size")).foregroundColor(.sushiNori)
                                 Spacer()
                                 Text("\(viewModel.request.partySize)").fontWeight(.bold).foregroundColor(.sushiSalmon)
                                 Stepper("", value: $viewModel.request.partySize, in: 1...20).labelsHidden()
                             }
-                            .padding().background(Color.white).cornerRadius(12)
+                            .padding().background(Color.cardBackground).cornerRadius(12)
                         }
 
                         // Section 3: User Info (auto-filled from profile DB)
                         VStack(alignment: .leading) {
-                            Text("YOUR CONTACT").modifier(OmakaseHeader())
-                            OmakaseTextField(icon: "person", placeholder: "Your Name", text: $viewModel.request.customerName)
-                            OmakaseTextField(icon: "envelope.fill", placeholder: "Your Email", text: $viewModel.request.customerEmail)
+                            Text(L("YOUR CONTACT")).modifier(OmakaseHeader())
+                            OmakaseTextField(icon: "person", placeholder: L("Your Name"), text: $viewModel.request.customerName)
+                            OmakaseTextField(icon: "envelope.fill", placeholder: L("Your Email"), text: $viewModel.request.customerEmail)
                                 .keyboardType(.emailAddress)
                                 .textInputAutocapitalization(.never)
                             // Phone: country code + number (same as Profile)
@@ -69,23 +70,23 @@ struct ReservationFormView: View {
                                     .keyboardType(.phonePad)
                                     .foregroundColor(.sushiNori)
                                     .frame(width: 56)
-                                TextField("Phone number", text: $phoneNational)
+                                TextField(L("Phone number"), text: $phoneNational)
                                     .keyboardType(.phonePad)
                                     .foregroundColor(.sushiNori)
                             }
                             .padding()
-                            .background(Color.white)
+                            .background(Color.cardBackground)
                             .cornerRadius(12)
                         }
 
                         // Section 4: Notes
                         VStack(alignment: .leading) {
-                            Text("SPECIAL REQUESTS").modifier(OmakaseHeader())
+                            Text(L("SPECIAL REQUESTS")).modifier(OmakaseHeader())
 
-                            TextField("Any allergies or special requests...", text: $viewModel.request.specialRequests, axis: .vertical)
+                            TextField(L("Any allergies or special requests..."), text: $viewModel.request.specialRequests, axis: .vertical)
                                 .lineLimit(3...6)
                                 .padding()
-                                .background(Color.white)
+                                .background(Color.cardBackground)
                                 .cornerRadius(12)
                                 .foregroundColor(.sushiNori)
                         }
@@ -103,7 +104,7 @@ struct ReservationFormView: View {
                                 ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
                                 Image(systemName: "phone.arrow.up.right.fill")
-                                Text("Start AI Call").fontWeight(.bold)
+                                Text(L("Start AI Call")).fontWeight(.bold)
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -120,12 +121,14 @@ struct ReservationFormView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .navigationTitle("New Reservation")
+        .navigationTitle(L("New Reservation"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if let r = restaurant {
                 viewModel.request.restaurantName = r.name
                 viewModel.request.restaurantPhone = r.phone ?? ""
+                viewModel.request.restaurantAddress = r.address ?? ""
+                viewModel.request.restaurantMapsUrl = r.mapsUrl ?? ""
             }
         }
         .task { await loadContactFromDB() }
@@ -187,7 +190,7 @@ struct OmakaseTextField: View {
                 .foregroundColor(.sushiNori)
         }
         .padding()
-        .background(Color.white)
+        .background(Color.cardBackground)
         .cornerRadius(12)
     }
 }
