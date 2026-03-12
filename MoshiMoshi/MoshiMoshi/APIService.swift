@@ -12,12 +12,12 @@ import Supabase
 class APIService {
     static let shared = APIService()
 
-    #if DEBUG
+//    #if DEBUG
     /// Simulator / local dev: hit Mac’s Next.js (npm run dev). Release uses Vercel.
-        private let baseURL = "http://localhost:3000/api/reservations"
-    #else
+//        private let baseURL = "http://localhost:3000/api/reservations"
+//    #else
         private let baseURL = "https://moshi-moshi-sand.vercel.app/api/reservations"
-    #endif
+//    #endif
     
     let supabase = SupabaseClient(
         supabaseURL: URL(string: "https://zzxkytfwfjfbtlimqfda.supabase.co")!,

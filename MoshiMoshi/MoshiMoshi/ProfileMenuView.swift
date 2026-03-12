@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 struct ProfileMenuView: View {
     @EnvironmentObject var auth: AuthManager
@@ -15,6 +16,9 @@ struct ProfileMenuView: View {
     @State private var displayEmail: String = ""
     @State private var displayPhone: String = ""
     @State private var displayRegion: String = "Tokyo"
+    
+    @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = true
+    @State private var showSettingsAlert = false
 
     private var languageLabel: String {
         switch lm.language {
@@ -89,7 +93,34 @@ struct ProfileMenuView: View {
 
                                 Divider().padding(.leading, 60)
 
-                                MenuRow(icon: "bell", title: L("Notifications"), subtitle: L("Enabled"), action: {})
+                                Toggle(isOn: $notificationsEnabled) {
+                                    HStack(spacing: 16) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.sushiRice)
+                                                .frame(width: 40, height: 40)
+                                            Image(systemName: "bell")
+                                                .font(.system(size: 18))
+                                                .foregroundColor(.sushiNori)
+                                        }
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(L("Notifications"))
+                                                    .font(.system(size: 16))
+                                                    .foregroundColor(.sushiNori)
+                                                Text(notificationsEnabled ? L("Enabled") : L("Disabled"))
+                                                    .font(.system(size: 14))
+                                                    .foregroundColor(.gray)
+                                            }
+                                        }
+                                    }
+                                    .tint(.sushiSalmon)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .onChange(of: notificationsEnabled) { newValue in
+                                    if newValue {
+                                        checkAndRequestNotificationPermission()
+                                    }
+                                }
                             }
                             .background(Color.cardBackground)
                             .cornerRadius(12)
@@ -170,6 +201,18 @@ struct ProfileMenuView: View {
             }
             .navigationTitle(L("Profile"))
             .navigationBarTitleDisplayMode(.large)
+            .alert(isPresented: $showSettingsAlert) {
+                Alert(
+                    title: Text(L("Permission Denied")),
+                    message: Text(L("Please enable notifications for MoshiMoshi in your iPhone Settings to receive reservation updates.")),
+                    primaryButton: .default(Text(L("Go to Settings")), action: {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }),
+                    secondaryButton: .cancel(Text(L("Cancel")))
+                )
+            }
         }
         .accentColor(.sushiSalmon)
         .onAppear { Task { await loadProfileFromDB() } }
@@ -211,6 +254,22 @@ struct ProfileMenuView: View {
             return (first + last).uppercased()
         } else {
             return String(displayName.prefix(2)).uppercased()
+        }
+    }
+    private func checkAndRequestNotificationPermission() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                if settings.authorizationStatus == .denied {
+                    self.notificationsEnabled = false
+                    self.showSettingsAlert = true
+                } else if settings.authorizationStatus == .notDetermined {
+                    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+                        DispatchQueue.main.async {
+                            self.notificationsEnabled = granted
+                        }
+                    }
+                }
+            }
         }
     }
 }
