@@ -54,6 +54,7 @@ export async function POST(
     const previousConversation = conversations[0]
     const nextAttemptNumber = previousConversation.attempt_number + 1
     const previousIssue = previousConversation.failure_reason || 'Previous attempt was unsuccessful'
+    const lastConversationSummary = previousConversation.confirmation_details?.summary || 'No summary available.'
 
     console.log(`[Retry] Starting attempt ${nextAttemptNumber} for reservation ${reservationId}`)
     console.log(`[Retry] Previous issue: ${previousIssue}`)
@@ -68,6 +69,15 @@ export async function POST(
         status: 'pending',
         booking_confirmed: false,
         user_response: user_response,
+        restaurant_name: reservation.restaurant_name,
+        restaurant_phone: reservation.restaurant_phone,
+        reservation_date: reservation.reservation_date,
+        reservation_time: reservation.reservation_time,
+        party_size: reservation.party_size,
+        customer_name: reservation.customer_name,
+        customer_phone: reservation.customer_phone,
+        customer_email: reservation.customer_email || null,
+        special_requests: reservation.special_requests || null,
       })
       .select()
       .single()
@@ -92,6 +102,19 @@ export async function POST(
 
     // Build dynamic variables with all context
     const dateFormatted = reservation.reservation_date.replace(/-/g, '/')
+    const isModification = !!previousConversation.modify_tag
+    const conversationRecord = isModification
+      ? JSON.stringify({
+          restaurant_name: previousConversation.restaurant_name,
+          restaurant_phone: previousConversation.restaurant_phone,
+          reservation_date: previousConversation.reservation_date,
+          reservation_time: previousConversation.reservation_time,
+          party_size: previousConversation.party_size,
+          customer_name: previousConversation.customer_name,
+          customer_phone: previousConversation.customer_phone,
+          special_requests: previousConversation.special_requests,
+        })
+      : ''
     const dynamicVariables: Record<string, string | number> = {
       restaurant_name: reservation.restaurant_name,
       date: dateFormatted,
@@ -102,6 +125,9 @@ export async function POST(
       special_requests: reservation.special_requests?.trim() || 'None',
       previous_issue: previousIssue,
       user_response: user_response,
+      last_conversation_summary: lastConversationSummary,
+      modify_tag: previousConversation.modify_tag || '',
+      conversation_record: conversationRecord,
     }
 
     const outboundPayload = {

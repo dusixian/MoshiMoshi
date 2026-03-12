@@ -65,6 +65,15 @@ export async function POST(request: NextRequest) {
         attempt_number: 1,
         status: 'pending',
         booking_confirmed: false,
+        restaurant_name: body.restaurant_name,
+        restaurant_phone: body.restaurant_phone,
+        reservation_date: body.reservation_date,
+        reservation_time: body.reservation_time,
+        party_size: body.party_size,
+        customer_name: body.customer_name,
+        customer_phone: body.customer_phone,
+        customer_email: body.customer_email || null,
+        special_requests: body.special_requests || null,
       })
       .select()
       .single()

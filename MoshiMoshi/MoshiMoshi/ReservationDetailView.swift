@@ -13,6 +13,7 @@ struct ReservationDetailView: View {
     let item: ReservationItem
     @ObservedObject var viewModel: ReservationViewModel
     @State private var showResponseSheet = false
+    @State private var showModifySheet = false
     @State private var showMapConfirm = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -20,7 +21,7 @@ struct ReservationDetailView: View {
     private var isActionRequired: Bool { item.status == .actionRequired }
     private var canModifyOrCancel: Bool {
         switch item.status {
-        case .confirmed, .cancelled: return false
+        case .cancelled: return false
         default: return true
         }
     }
@@ -95,6 +96,10 @@ struct ReservationDetailView: View {
             ActionResponseView(item: item)
                 .environmentObject(viewModel)
         }
+        .sheet(isPresented: $showModifySheet) {
+            ModifyReservationView(item: item)
+                .environmentObject(viewModel)
+        }
     }
 
     // MARK: - Action Required Banner
@@ -164,15 +169,9 @@ struct ReservationDetailView: View {
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-            } else if item.status == .confirmed {
-                Text("Confirmed reservations cannot be modified or cancelled.")
-                    .font(.system(size: 15))
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
             } else if canModifyOrCancel {
                 HStack(spacing: 16) {
-                    Button(action: { /* TODO: Modify */ }) {
+                    Button(action: { showModifySheet = true }) {
                         Text("Modify")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
