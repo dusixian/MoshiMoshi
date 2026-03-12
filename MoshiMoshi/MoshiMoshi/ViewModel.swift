@@ -8,6 +8,7 @@
 import SwiftUI
 import Foundation
 import Supabase
+import UserNotifications
 
 
 class ReservationViewModel: ObservableObject {
@@ -24,6 +25,38 @@ class ReservationViewModel: ObservableObject {
 
     init() {
         refreshUserData()
+        requestNotificationPermission()
+    }
+    
+    // Request notification permissions
+    func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted {
+                print("✅ Notification permission granted")
+            } else if let error = error {
+                print("❌ Notification permission denied: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    // Low-level utility for sending local notifications
+    private func sendLocalNotification(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default // Default system "ding" sound
+
+        // Trigger after 1 second (almost immediate)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ Failed to send local notification: \(error.localizedDescription)")
+            } else {
+                print("📣 Local notification scheduled successfully: \(title)")
+            }
+        }
     }
 
     /// Fill contact from DB profile (call when opening reservation form). Falls back to UserDefaults if no profile.
@@ -330,12 +363,48 @@ class ReservationViewModel: ObservableObject {
                         self.reservations[index].status = uiStatus
                         self.reservations[index].resultMessage = displayMsg
                         self.reservations[index].conversations = conversations
+                        
+                        let fullData = ReservationData(
+                            id: row.id,
+                            status: row.status,
+                            bookingConfirmed: nil,
+                            failureReason: row.failureReason,
+                            updatedAt: row.updatedAt,
+                            audioUrl: row.audioUrl,
+                            confirmationDetails: row.confirmationDetails
+                        )
+                        self.triggerNotificationForStatusUpdate(record: fullData, restaurantName: row.restaurantName)
                     }
                 }
             } catch {
                 print("❌ Failed to refresh single reservation: \(error)")
             }
         }
+    
+    
+    // Dedicated method to handle dynamic notification logic based on DB status
+        private func triggerNotificationForStatusUpdate(record: ReservationData, restaurantName: String) {
+            let failureReason = record.failureReason ?? ""
+            let restName = restaurantName.isEmpty ? "The restaurant" : restaurantName
+                
+            switch record.status.lowercased() {
+            case "completed", "confirmed":
+                sendLocalNotification(title: "✅ Booking Confirmed!", body: "\(restName) has confirmed your table. Tap to view details.")
+                    
+            case "action_required":
+                sendLocalNotification(title: "⚠️ Action Required", body: "\(restName) offered an alternative time or needs more info. Tap to reply.")
+                    
+            case "failed":
+                sendLocalNotification(title: "❌ Booking Failed", body: "\(restName) couldn't accept your reservation. Reason: \(failureReason)")
+                    
+            case "incomplete":
+                sendLocalNotification(title: "📞 Call Disconnected", body: "The AI agent couldn't finish the conversation with \(restName).")
+
+            default:
+                break
+            }
+        }
+    
     
     // MARK: - Helpers
         private func handleStatusUpdate(record: ReservationData, uiItemId: UUID) {

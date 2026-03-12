@@ -82,12 +82,12 @@ export async function POST(
 
     // Step 4: Prepare ElevenLabs outbound call
     const apiKey = process.env.ELEVENLABS_API_KEY
-    const agentId = process.env.ELEVENLABS_AGENT_ID
+    const agentId = process.env.ELEVENLABS_RECALL_AGENT_ID
     const agentPhoneNumberId = process.env.ELEVENLABS_AGENT_PHONE_NUMBER_ID
     if (!apiKey || !agentId || !agentPhoneNumberId) {
       console.error('[Retry] ElevenLabs config missing:', { apiKey: !!apiKey, agentId: !!agentId, agentPhoneNumberId: !!agentPhoneNumberId })
       return NextResponse.json(
-        { error: 'Server misconfiguration: ELEVENLABS_API_KEY, ELEVENLABS_AGENT_ID, and ELEVENLABS_AGENT_PHONE_NUMBER_ID must be set' },
+        { error: 'Server misconfiguration: ELEVENLABS_API_KEY, ELEVENLABS_RECALL_AGENT_ID, and ELEVENLABS_AGENT_PHONE_NUMBER_ID must be set' },
         { status: 500 }
       )
     }
