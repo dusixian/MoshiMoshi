@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
         party_size: body.party_size,
         customer_name: body.customer_name,
         customer_phone: body.customer_phone,
+        customer_email: body.customer_email || null,
         special_requests: body.special_requests || null,
         status: 'pending'
       })

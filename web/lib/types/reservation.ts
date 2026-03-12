@@ -66,6 +66,7 @@ export interface CreateReservationRequest {
   party_size: number
   customer_name: string
   customer_phone: string
+  customer_email?: string
   special_requests?: string
 }
 
