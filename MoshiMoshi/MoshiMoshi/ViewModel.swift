@@ -290,38 +290,53 @@ class ReservationViewModel: ObservableObject {
     
     // MARK: - Supabase Realtime V2 Logic
         func startRealtimeListener(backendId: String, uiItemId: UUID) async {
+            print("🎧 [Realtime] Starting listener for reservation: \(backendId)")
             let channel = APIService.shared.supabase.channel("public:reservations:id=eq.\(backendId)")
-                
+
             let changes = channel.postgresChange(
                 UpdateAction.self,
                 schema: "public",
                 table: "reservations",
                 filter: .eq("id", value: backendId)
             )
-                
+
             do {
                 try await channel.subscribeWithError()
-                print("🎧 RealtimeV2: Listening for status updates on reservation \(backendId)...")
+                print("✅ [Realtime] Successfully subscribed to reservation \(backendId)")
+
+                // IMPORTANT: Check immediately after subscribing to catch any updates that happened during subscription
+                print("🔍 [Realtime] Checking for missed updates...")
+                await self.refreshSingleReservation(backendId: backendId, uiItemId: uiItemId)
             } catch {
-                print("❌ RealtimeV2 connection failed: \(error)")
+                print("❌ [Realtime] Subscription failed: \(error)")
                 return
             }
-                
-            for await _ in changes {
-                print("⚡️ RealtimeV2 update received! Re-fetching full history for \(backendId)...")
-                
-                await MainActor.run {
-                    Task {
-                        await self.refreshSingleReservation(backendId: backendId, uiItemId: uiItemId)
+
+            for await change in changes {
+                print("⚡️ [Realtime] Update event received!")
+                print("📦 [Realtime] Change type: \(type(of: change))")
+
+                // Fast refresh
+                await self.refreshSingleReservation(backendId: backendId, uiItemId: uiItemId)
+
+                // Check if we should stop listening (only if status is no longer pending)
+                let isDone = await MainActor.run {
+                    if let item = self.reservations.first(where: { $0.id == uiItemId }) {
+                        print("📊 [Realtime] Current status: \(item.status)")
+                        return item.status != .pending
                     }
+                    return false
                 }
-                    
-                await channel.unsubscribe()
-                break
+
+                if isDone {
+                    print("🏁 [Realtime] Call finished. Closing listener.")
+                    await channel.unsubscribe()
+                    break
+                }
             }
         }
 
-        // Helper
+        // Helper: Refresh a single reservation and its conversation history
         func refreshSingleReservation(backendId: String, uiItemId: UUID) async {
             do {
                 let row: ReservationDBRow = try await APIService.shared.supabase
@@ -342,52 +357,39 @@ class ReservationViewModel: ObservableObject {
                 
                 await MainActor.run {
                     if let index = self.reservations.firstIndex(where: { $0.id == uiItemId }) {
+
+                        // 1. Store the status BEFORE the update
+                        let statusBeforeUpdate = self.reservations[index].status
+                        print("📊 [Notification Debug] statusBeforeUpdate: \(statusBeforeUpdate)")
+
+                        // 2. Determine the NEW status
                         let rawStatus = row.status.lowercased()
-                        var uiStatus: ReservationStatus = .pending
-                        if rawStatus == "completed" || rawStatus == "confirmed" { uiStatus = .confirmed }
-                        else if rawStatus == "action_required" { uiStatus = .actionRequired }
-                        else if rawStatus == "failed" { uiStatus = .failed }
-                        else if rawStatus == "incomplete" { uiStatus = .incomplete }
-                        
+                        var statusAfterUpdate: ReservationStatus = .pending
+
+                        if rawStatus == "completed" || rawStatus == "confirmed" { statusAfterUpdate = .confirmed }
+                        else if rawStatus == "action_required" { statusAfterUpdate = .actionRequired }
+                        else if rawStatus == "failed" { statusAfterUpdate = .failed }
+                        else if rawStatus == "incomplete" { statusAfterUpdate = .incomplete }
+
+                        print("📊 [Notification Debug] statusAfterUpdate: \(statusAfterUpdate)")
+
+                        // 3. Update the UI Text
                         let summary = row.confirmationDetails?.summary ?? ""
                         let failureMsg = row.failureReason ?? ""
                         var displayMsg = ""
-                        switch uiStatus {
+                        switch statusAfterUpdate {
                         case .confirmed: displayMsg = summary.isEmpty ? "Reservation Confirmed!" : "Confirmed: \(summary)"
                         case .actionRequired: displayMsg = failureMsg.isEmpty ? "Action needed." : "⚠️ Action Required:\n\(failureMsg)"
                         case .failed: displayMsg = failureMsg.isEmpty ? "Rejected by restaurant." : "❌ Failed: \(failureMsg)"
                         case .incomplete: displayMsg = "⚠️ Call disconnected."
                         default: displayMsg = "Processing..."
                         }
-                        
-                        // Rebuild request from updated DB row
-                        var req = ReservationRequest()
-                        req.restaurantName = row.restaurantName
-                        req.restaurantPhone = row.restaurantPhone ?? ""
-                        req.customerName = row.customerName ?? ""
-                        req.customerPhone = row.customerPhone ?? ""
-                        req.customerEmail = row.customerEmail ?? ""
-                        req.partySize = row.partySize ?? 2
-                        req.specialRequests = row.specialRequests ?? ""
-                        req.reservationDate = row.reservationDate ?? ""
-                        req.reservationTime = row.reservationTime ?? ""
-                        req.restaurantAddress = row.restaurantAddress ?? ""
-                        req.restaurantMapsUrl = row.restaurantMapsUrl ?? ""
-                        let jst = TimeZone(identifier: "Asia/Tokyo")!
-                        let dateStr = row.reservationDate ?? ""
-                        let timeStr = row.reservationTime ?? ""
-                        if !dateStr.isEmpty, !timeStr.isEmpty {
-                            let combinedFull = "\(dateStr) \(timeStr)"
-                            let fmtSec = DateFormatter(); fmtSec.dateFormat = "yyyy-MM-dd HH:mm:ss"; fmtSec.timeZone = jst
-                            let fmtMin = DateFormatter(); fmtMin.dateFormat = "yyyy-MM-dd HH:mm"; fmtMin.timeZone = jst
-                            if let parsed = fmtSec.date(from: combinedFull) ?? fmtMin.date(from: "\(dateStr) \(timeStr.prefix(5))") {
-                                req.dateTime = parsed
-                            }
-                        }
-                        self.reservations[index].request = req
-                        self.reservations[index].status = uiStatus
+
+                        // 4. Apply updates to the model
+                        self.reservations[index].status = statusAfterUpdate
                         self.reservations[index].resultMessage = displayMsg
                         self.reservations[index].conversations = conversations
+
                         let fullData = ReservationData(
                             id: row.id,
                             status: row.status,
@@ -397,7 +399,16 @@ class ReservationViewModel: ObservableObject {
                             audioUrl: row.audioUrl,
                             confirmationDetails: row.confirmationDetails
                         )
-                        self.triggerNotificationForStatusUpdate(record: fullData, restaurantName: row.restaurantName)
+                        self.reservations[index].fullData = fullData
+
+                        // 5. TRIGGER NOTIFICATION
+                        print("📊 [Notification Debug] Checking condition: \(statusBeforeUpdate) == .pending && \(statusAfterUpdate) != .pending")
+                        if statusBeforeUpdate == .pending && statusAfterUpdate != .pending {
+                            print("🔔 [Notification Debug] CONDITION MET! Firing notification for status: \(statusAfterUpdate)")
+                            self.triggerNotificationForStatusUpdate(record: fullData, restaurantName: row.restaurantName)
+                        } else {
+                            print("⚠️ [Notification Debug] Condition NOT met. No notification will be sent.")
+                        }
                     }
                 }
             } catch {
