@@ -38,9 +38,22 @@
 		450D38702F232FAA000ABDEB /* MoshiMoshiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoshiMoshiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		4543073A2F63A79A001DF26F /* Exceptions for "MoshiMoshi" folder in "MoshiMoshi" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 450D38582F232FA8000ABDEB /* MoshiMoshi */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		450D385B2F232FA8000ABDEB /* MoshiMoshi */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4543073A2F63A79A001DF26F /* Exceptions for "MoshiMoshi" folder in "MoshiMoshi" target */,
+			);
 			path = MoshiMoshi;
 			sourceTree = "<group>";
 		};
@@ -433,6 +446,7 @@
 				DEVELOPMENT_TEAM = ZD4V93ZCFT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MoshiMoshi/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -463,6 +477,7 @@
 				DEVELOPMENT_TEAM = ZD4V93ZCFT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MoshiMoshi/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -7,12 +7,24 @@
 
 import SwiftUI
 import UserNotifications
+import AVFoundation
 
-// AppDelegate to handle notification presentation
+// AppDelegate to handle notification presentation and background execution
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        
         // Set notification delegate to show notifications even when app is in foreground
         UNUserNotificationCenter.current().delegate = self
+        
+        // Configure AVAudioSession to deceive iOS into keeping the app alive in the background
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+            print("🔊 AVAudioSession configured for background execution")
+        } catch {
+            print("❌ Failed to set audio session category: \(error.localizedDescription)")
+        }
+        
         return true
     }
 
