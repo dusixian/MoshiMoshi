@@ -360,34 +360,10 @@ class ReservationViewModel: ObservableObject {
                         default: displayMsg = "Processing..."
                         }
                         
-                        // Rebuild request from updated DB row
-                        var req = ReservationRequest()
-                        req.restaurantName = row.restaurantName
-                        req.restaurantPhone = row.restaurantPhone ?? ""
-                        req.customerName = row.customerName ?? ""
-                        req.customerPhone = row.customerPhone ?? ""
-                        req.customerEmail = row.customerEmail ?? ""
-                        req.partySize = row.partySize ?? 2
-                        req.specialRequests = row.specialRequests ?? ""
-                        req.reservationDate = row.reservationDate ?? ""
-                        req.reservationTime = row.reservationTime ?? ""
-                        req.restaurantAddress = row.restaurantAddress ?? ""
-                        req.restaurantMapsUrl = row.restaurantMapsUrl ?? ""
-                        let jst = TimeZone(identifier: "Asia/Tokyo")!
-                        let dateStr = row.reservationDate ?? ""
-                        let timeStr = row.reservationTime ?? ""
-                        if !dateStr.isEmpty, !timeStr.isEmpty {
-                            let combinedFull = "\(dateStr) \(timeStr)"
-                            let fmtSec = DateFormatter(); fmtSec.dateFormat = "yyyy-MM-dd HH:mm:ss"; fmtSec.timeZone = jst
-                            let fmtMin = DateFormatter(); fmtMin.dateFormat = "yyyy-MM-dd HH:mm"; fmtMin.timeZone = jst
-                            if let parsed = fmtSec.date(from: combinedFull) ?? fmtMin.date(from: "\(dateStr) \(timeStr.prefix(5))") {
-                                req.dateTime = parsed
-                            }
-                        }
-                        self.reservations[index].request = req
                         self.reservations[index].status = uiStatus
                         self.reservations[index].resultMessage = displayMsg
                         self.reservations[index].conversations = conversations
+                        
                         let fullData = ReservationData(
                             id: row.id,
                             status: row.status,

@@ -283,16 +283,10 @@ struct ReservationDetailView: View {
         return formatter.string(from: date) + " (GMT+9)"
     }
 
-    /// Convert stored "HH:mm" to "h:mm AM/PM (JST)"
+    /// Show reservation time as stored (local time), e.g. "19:00"
     private func reservationTimeDisplay(_ reservationTime: String) -> String {
-        guard reservationTime.count >= 5 else { return reservationTime.isEmpty ? "—" : reservationTime }
-        let input = String(reservationTime.prefix(5))
-        let inFmt = DateFormatter(); inFmt.dateFormat = "HH:mm"; inFmt.timeZone = TimeZone(identifier: "Asia/Tokyo")
-        let outFmt = DateFormatter(); outFmt.dateFormat = "h:mm a"; outFmt.timeZone = TimeZone(identifier: "Asia/Tokyo")
-        if let date = inFmt.date(from: input) {
-            return outFmt.string(from: date) + " (JST)"
-        }
-        return input
+        guard !reservationTime.isEmpty else { return "—" }
+        return reservationTime.count >= 5 ? String(reservationTime.prefix(5)) : reservationTime
     }
 }
 
@@ -586,7 +580,7 @@ struct CallHistoryExpandableCard: View {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         guard let date = formatter.date(from: dateString) else { return "Recently" }
         
-        let outFormatter = DateFormatter(); outFormatter.dateFormat = "MMM dd, h:mm a"; outFormatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
-        return outFormatter.string(from: date) + " (JST)"
+        let outFormatter = DateFormatter(); outFormatter.dateFormat = "MMM dd, h:mm a"
+        return outFormatter.string(from: date) + " (GMT+9)"
     }
 }
