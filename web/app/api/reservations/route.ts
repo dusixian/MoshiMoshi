@@ -89,10 +89,12 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = process.env.ELEVENLABS_API_KEY
-    if (!apiKey) {
-      console.error('ELEVENLABS_API_KEY is not set')
+    const agentId = process.env.ELEVENLABS_AGENT_ID
+    const agentPhoneNumberId = process.env.ELEVENLABS_AGENT_PHONE_NUMBER_ID
+    if (!apiKey || !agentId || !agentPhoneNumberId) {
+      console.error('ElevenLabs config missing:', { apiKey: !!apiKey, agentId: !!agentId, agentPhoneNumberId: !!agentPhoneNumberId })
       return NextResponse.json(
-        { error: 'Server misconfiguration: ELEVENLABS_API_KEY missing' },
+        { error: 'Server misconfiguration: ELEVENLABS_API_KEY, ELEVENLABS_AGENT_ID, and ELEVENLABS_AGENT_PHONE_NUMBER_ID must be set in .env.local' },
         { status: 500 }
       )
     }
@@ -110,8 +112,8 @@ export async function POST(request: NextRequest) {
     }
 
     const outboundPayload = {
-      agent_id: 'agent_1901kfebxqqmf3t8199cjbg2h9dt',
-      agent_phone_number_id: 'phnum_7201kjre5njbethvynsv2e39tcjj',
+      agent_id: agentId,
+      agent_phone_number_id: agentPhoneNumberId,
       to_number: body.restaurant_phone,
       conversation_initiation_client_data: {
         dynamic_variables: dynamicVariables,

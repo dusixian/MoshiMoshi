@@ -6,20 +6,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('[Webhook] Received payload at:', new Date().toISOString());
     console.log('[Webhook] Webhook type:', body.type);
-    console.log('[Webhook] Full payload:', JSON.stringify(body, null, 2));
 
-    // Only process post_call_transcription webhooks
-    // post_call_audio webhooks don't have transcript/analysis data
-    if (body.type !== 'post_call_transcription') {
-      console.log('[Webhook] Skipping non-transcription webhook:', body.type);
-      return NextResponse.json({ success: true, message: 'Non-transcription webhook ignored' });
+    // 1. Filter out unsupported webhook types
+    if (body.type !== 'post_call_transcription' && body.type !== 'post_call_audio') {
+      console.log('[Webhook] Skipping unsupported webhook type:', body.type);
+      return NextResponse.json({ success: true, message: 'Webhook ignored' });
     }
 
     const rawData = body.data || {};
-    const analysis = rawData.analysis || {};
-    const dataResults = analysis.data_collection_results || {};
     const metadata = rawData.metadata || {};
-
+    
+    // Extract ElevenLabs conversation_id
     const convId = body.conversation_id || rawData.conversation_id || metadata.conversation_id;
     console.log(`[Webhook] Extracted conversation_id: ${convId}`);
 
@@ -97,6 +94,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Missing conversation_id' }, { status: 400 });
     }
 
+    const supabase = await createClient();
+
+    // 2. Find the corresponding reservation in the database (match by conversation_id)
     const { data: targetConversation, error: fetchError } = await supabase
       .from('conversations')
       .select('id, reservation_id')
@@ -104,106 +104,148 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (fetchError || !targetConversation) {
-      console.error('[Webhook] Did not find conversation with conversation_id:', convId, fetchError);
+      console.error('[Webhook] Did not find conversation with conversation_id:', convId);
       return NextResponse.json({ success: false, message: 'No matching conversation found' }, { status: 200 });
     }
 
     const conversationId = targetConversation.id;
     const reservationId = targetConversation.reservation_id;
-    console.log(`[Webhook] Found conversation ID: ${conversationId}, reservation ID: ${reservationId}`);
 
-    // Audio
-    let finalAudioUrl = null;
-    if (convId && process.env.ELEVENLABS_API_KEY) {
-      try {
-        console.log(`[Webhook] Fetching audio for ${convId}...`);
-        const audioRes = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${convId}/audio`, {
-          method: 'GET',
-          headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY }
+    // ==========================================
+    // 🌟 SCENARIO A: Process Audio Payload 
+    // ==========================================
+    if (body.type === 'post_call_audio') {
+      console.log(`[Webhook] 🎧 Processing AUDIO payload for ${convId}`);
+      
+      const base64Audio = rawData.full_audio;
+      if (!base64Audio) {
+        return NextResponse.json({ success: false, message: 'No audio data found' }, { status: 400 });
+      }
+
+      // Convert Base64 string to MP3 Buffer
+      const audioBuffer = Buffer.from(base64Audio, 'base64');
+      const fileName = `${convId}.mp3`;
+
+      // Upload to Supabase 'call_audios' storage bucket
+      const { error: uploadError } = await supabase.storage
+        .from('call_audios')
+        .upload(fileName, audioBuffer, {
+          contentType: 'audio/mpeg',
+          upsert: true
         });
 
-        if (audioRes.ok) {
-          const audioBlob = await audioRes.blob();
-          const audioBuffer = await audioBlob.arrayBuffer();
-          const fileName = `${convId}.mp3`;
-
-          // to call_audios bucket
-          const { error: uploadError } = await supabase.storage
-            .from('call_audios')
-            .upload(fileName, audioBuffer, {
-              contentType: 'audio/mpeg',
-              upsert: true
-            });
-
-          if (uploadError) {
-            console.error('[Webhook] Supabase storage upload failed:', uploadError);
-          } else {
-            const { data: publicUrlData } = supabase.storage
-              .from('call_audios')
-              .getPublicUrl(fileName);
-            
-            finalAudioUrl = publicUrlData.publicUrl;
-            console.log(`[Webhook] Successfully saved audio URL: ${finalAudioUrl}`);
-          }
-        } else {
-          console.error('[Webhook] Failed to fetch audio from ElevenLabs. Status:', audioRes.status);
-        }
-      } catch (audioError) {
-        console.error('[Webhook] Error during audio processing:', audioError);
+      if (uploadError) {
+        console.error('[Webhook] ❌ Supabase storage upload failed:', uploadError);
+        return NextResponse.json({ error: 'Audio upload failed' }, { status: 500 });
       }
-    } else {
-      console.warn('[Webhook] Missing convId or ELEVENLABS_API_KEY. Skipping audio fetch.');
+
+      // Get public audio URL
+      const { data: publicUrlData } = supabase.storage
+        .from('call_audios')
+        .getPublicUrl(fileName);
+        
+      const finalAudioUrl = publicUrlData.publicUrl;
+      console.log(`[Webhook] ✅ Successfully saved audio URL: ${finalAudioUrl}`);
+
+      // Only update the audio_url field to prevent overwriting transcription data
+      await supabase.from('conversations').update({ audio_url: finalAudioUrl }).eq('id', conversationId);
+      await supabase.from('reservations').update({ audio_url: finalAudioUrl }).eq('id', reservationId);
+
+      return NextResponse.json({ success: true, audio_saved: true });
     }
 
 
-    // Update conversations table with call details
-    const { error: updateConversationError } = await supabase
-      .from('conversations')
-      .update({
-        status: dbStatus,
-        booking_confirmed: isConfirmed,
-        failure_reason: finalFailureReason,
-        confirmation_details: cleanedDetails,
-        audio_url: finalAudioUrl,
-        call_ended_at: new Date().toISOString()
-      })
-      .eq('id', conversationId);
+    // ==========================================
+    // 🌟 SCENARIO B: Process Transcription & Status
+    // ==========================================
+    if (body.type === 'post_call_transcription') {
+      console.log(`[Webhook] 📝 Processing TRANSCRIPTION payload for ${convId}`);
+      
+      const analysis = rawData.analysis || {};
+      const dataResults = analysis.data_collection_results || {};
+      
+      const cleanTranscript = (rawData.transcript || []).map((msg: any) => ({
+        role: msg.role || "unknown",
+        message: msg.message || ""
+      }));
 
-    if (updateConversationError) {
-      console.error('[Webhook] Conversation update error:', updateConversationError);
-      return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
+      const cleanedDetails = {
+        summary: analysis.transcript_summary || "",
+        results: dataResults,
+        transcript: cleanTranscript,
+        call_stats: {
+          duration: metadata.call_duration_secs || 0,
+          cost: metadata.cost || 0
+        }
+      };
+
+      // Anti-phantom data mechanism: Ignore empty payloads to protect existing DB records
+      if (cleanTranscript.length === 0 && cleanedDetails.call_stats.duration === 0) {
+        console.log(`[Webhook] Intercepted phantom empty data. Canceling DB updates.`);
+        return NextResponse.json({ success: true, message: 'Ignored empty phantom payload' });
+      }
+
+      const rawStatus = String(dataResults.reservation_status?.value || dataResults.reservation_status || "incomplete").toLowerCase();
+      const requiredAction = dataResults.required_action?.value || null;
+      const rejectionReason = dataResults.rejection_reason?.value || null;
+
+      let dbStatus = 'completed';
+      let isConfirmed = false;
+      let finalFailureReason = null;
+
+      // Priority 1: Check if there's a required_action (e.g., alternative time offered)
+      if (requiredAction) {
+        dbStatus = 'action_required';
+        finalFailureReason = requiredAction;
+        isConfirmed = false;
+      } 
+      // Priority 2: Check reservation_status
+      else if (rawStatus === 'confirmed') {
+        dbStatus = 'completed';
+        isConfirmed = true;
+      } else if (rawStatus === 'action_required') {
+        dbStatus = 'action_required';
+        finalFailureReason = requiredAction;
+      } else if (rawStatus === 'failed') {
+        dbStatus = 'failed';
+        finalFailureReason = rejectionReason;
+      } else {
+        dbStatus = 'incomplete';
+      }
+
+      console.log(`[Webhook] Status updated -> DB: ${dbStatus}`);
+
+      // Update conversations table (Note: audio_url is not overwritten here to preserve the audio webhook's update)
+      await supabase
+        .from('conversations')
+        .update({
+          status: dbStatus,
+          booking_confirmed: isConfirmed,
+          failure_reason: finalFailureReason,
+          confirmation_details: cleanedDetails,
+          call_ended_at: new Date().toISOString()
+        })
+        .eq('id', conversationId);
+
+      // Update reservations table
+      const currentSummary = dbStatus === 'action_required'
+        ? `Action required: ${finalFailureReason}`
+        : cleanedDetails.summary;
+
+      await supabase
+        .from('reservations')
+        .update({
+          status: dbStatus,
+          current_summary: currentSummary,
+          updated_at: new Date().toISOString(),
+          booking_confirmed: isConfirmed,
+          confirmation_details: cleanedDetails,
+          failure_reason: finalFailureReason,
+        })
+        .eq('id', reservationId);
+
+      return NextResponse.json({ success: true, conversation_id: conversationId });
     }
-
-    // Update reservations table with overall status
-    const currentSummary = dbStatus === 'action_required'
-      ? `Action required: ${finalFailureReason}`
-      : cleanedDetails.summary;
-
-    const { error: updateReservationError } = await supabase
-      .from('reservations')
-      .update({
-        status: dbStatus,
-        current_summary: currentSummary,
-        updated_at: new Date().toISOString(),
-        // Update old fields for backward compatibility with iOS
-        booking_confirmed: isConfirmed,
-        confirmation_details: cleanedDetails,
-        failure_reason: finalFailureReason,
-        audio_url: finalAudioUrl,
-      })
-      .eq('id', reservationId);
-
-    if (updateReservationError) {
-      console.error('[Webhook] Reservation update error:', updateReservationError);
-      return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      conversation_id: conversationId,
-      reservation_id: reservationId,
-      audio_saved: !!finalAudioUrl
-    });
 
   } catch (error) {
     console.error('[Webhook] Fatal error:', error);

@@ -92,10 +92,12 @@ export async function POST(
 
     // Step 4: Prepare ElevenLabs outbound call
     const apiKey = process.env.ELEVENLABS_API_KEY
-    if (!apiKey) {
-      console.error('[Retry] ELEVENLABS_API_KEY is not set')
+    const agentId = process.env.ELEVENLABS_RECALL_AGENT_ID
+    const agentPhoneNumberId = process.env.ELEVENLABS_AGENT_PHONE_NUMBER_ID
+    if (!apiKey || !agentId || !agentPhoneNumberId) {
+      console.error('[Retry] ElevenLabs config missing:', { apiKey: !!apiKey, agentId: !!agentId, agentPhoneNumberId: !!agentPhoneNumberId })
       return NextResponse.json(
-        { error: 'Server misconfiguration: ELEVENLABS_API_KEY missing' },
+        { error: 'Server misconfiguration: ELEVENLABS_API_KEY, ELEVENLABS_RECALL_AGENT_ID, and ELEVENLABS_AGENT_PHONE_NUMBER_ID must be set' },
         { status: 500 }
       )
     }
@@ -131,8 +133,8 @@ export async function POST(
     }
 
     const outboundPayload = {
-      agent_id: 'agent_1901kfebxqqmf3t8199cjbg2h9dt',
-      agent_phone_number_id: 'phnum_7201kjre5njbethvynsv2e39tcjj',
+      agent_id: agentId,
+      agent_phone_number_id: agentPhoneNumberId,
       to_number: reservation.restaurant_phone,
       conversation_initiation_client_data: {
         dynamic_variables: dynamicVariables,

@@ -56,7 +56,14 @@ struct GooglePlaceResult: Identifiable {
 // MARK: - Service
 
 class GooglePlacesService: ObservableObject {
-    private let apiKey = "AIzaSyAIUlZwqCl9lbpILVF0BQcKUwZTMkN_ykA"
+    private let apiKey: String = {
+        guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
+              let dict = NSDictionary(contentsOfFile: path),
+              let key = dict["GOOGLE_PLACES_API_KEY"] as? String else {
+            fatalError("Missing GOOGLE_PLACES_API_KEY in Secrets.plist")
+        }
+        return key
+    }()
 
     struct RegionSuggestion: Identifiable {
         let id: String          // place_id

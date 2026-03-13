@@ -124,6 +124,12 @@ struct ReservationFormView: View {
         .navigationTitle(L("New Reservation"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
+            // Clear form fields when opening (if not from a specific restaurant)
+            if restaurant == nil {
+                viewModel.resetFormFields()
+            }
+
+            // If navigating from a specific restaurant, fill in its details
             if let r = restaurant {
                 viewModel.request.restaurantName = r.name
                 viewModel.request.restaurantPhone = r.phone ?? ""

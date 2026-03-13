@@ -13,10 +13,10 @@ class APIService {
     static let shared = APIService()
 
 //    #if DEBUG
-//    /// Simulator / local dev: hit Mac’s Next.js (npm run dev). Release uses Vercel.
-//    private let baseURL = "http://localhost:3000/api/reservations"
+    /// Simulator / local dev: hit Mac’s Next.js (npm run dev). Release uses Vercel.
+//        private let baseURL = "http://localhost:3000/api/reservations"
 //    #else
-    private let baseURL = "https://moshi-moshi-sand.vercel.app/api/reservations"
+        private let baseURL = "https://moshi-moshi-sand.vercel.app/api/reservations"
 //    #endif
     
     let supabase = SupabaseClient(
