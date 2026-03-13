@@ -178,7 +178,7 @@ struct ConversationData: Codable, Identifiable {
 struct ReservationItem: Identifiable {
     let id: UUID = UUID()
     var backendId: String?
-    let request: ReservationRequest
+    var request: ReservationRequest
     var status: ReservationStatus
     var resultMessage: String?
     var fullData: ReservationData?  // Keep for backward compatibility
